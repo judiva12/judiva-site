@@ -727,10 +727,11 @@ function renderMenu() {
         <span class="eyebrow">${all.length} ürün · fiyatlar ${esc(units)} başına</span>
         <h2>${esc(c.word)}</h2>
       </div>
-      ${c.key === 'mezeler' && !q ? sofraHTML() : ''}
       <div class="grid">${list.map(cardHTML).join('')}</div>
     </section>`;
   }).join('') || '';
+  // Sofra kur: mezeler, pastalar ve içeceklerden seçki; kategorilerin üstünde kendi bölümü
+  if (!q) $('#chapters').insertAdjacentHTML('afterbegin', `<section class="chapter" id="sofra-kur">${sofraHTML()}</section>`);
   if (!any) $('#chapters').innerHTML = `<p class="empty">“${esc($('#q').value)}” için ürün bulunamadı. Farklı bir kelime deneyin.</p>`;
   observeChapters(); renderSofra();
 }
