@@ -315,6 +315,10 @@ button.ccard:hover { border-color: var(--brass); }
 .sizes button span { font-size: 14px; font-weight: 600; }
 .sizes button small { font-size: 11px; color: var(--muted); }
 .sizes button.on { border-color: var(--wine-hi); box-shadow: 0 0 0 1px var(--wine-hi) inset; }
+.sf-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-bottom: 10px; }
+.sf-tabs button { background: var(--bg); color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 8px 6px; font: inherit; font-size: 14px; cursor: pointer; display: inline-flex; justify-content: center; align-items: center; gap: 6px; }
+.sf-tabs button.on { background: var(--brass); color: var(--bg); border-color: var(--brass); }
+.sf-tabs .badge { font-size: 11px; min-width: 18px; padding: 0 5px; border-radius: 999px; background: var(--wine); color: var(--text); }
 .sf-search { width: 100%; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; margin-bottom: 10px; }
 .tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; max-height: 470px; overflow-y: auto; padding-right: 4px; }
 .tile { display: grid; grid-template-columns: 44px minmax(0, 1fr) 22px; gap: 10px; align-items: center; background: var(--raised); border: 1px solid var(--line); border-radius: 12px; padding: 6px 10px 6px 6px; text-align: left; }
@@ -1011,16 +1015,26 @@ $('#prodDlg').addEventListener('close', () => { curProd = null; if (location.has
 const SIZES = [{ kg: .5, label: '500 g', sub: 'Az kişi', r: 16 }, { kg: 1, label: '1 kg', sub: 'Orta sofra', r: 22 }, { kg: 2, label: '2 kg', sub: 'Kalabalık', r: 28 }];
 const SLOTS = [[24, 30, 25], [52, 24, 24], [79, 32, 25], [33, 63, 27], [65, 60, 28], [88, 69, 20], [11, 66, 19], [50, 86, 19], [74, 90, 17], [12, 33, 16], [91, 15, 14], [8, 10, 13]];
 let sofra = ls.get('judiva.sofra', { kg: 1, sel: [] });
-let sofraQ = '';
+let sofraQ = '', sofraTab = 'mezeler';
+// Sofrada sunulan seçki: 15 meze, 10 pasta, 4 içecek
+const SOFRA_SET = {
+  mezeler: ['130', '133', '143', '141', '153', '168', '164', '166', '239', '212', '206', '213', '240', '205', '227'],
+  pastalar: ['246', '249', '264', '263', '266', '255', '259', '261', '256', '270'],
+  icecekler: ['9', '61', '51', '26'],
+};
+const SOFRA_TABS = [['mezeler', 'Mezeler'], ['pastalar', 'Pastalar'], ['icecekler', 'İçecekler']];
 function saveSofra() { ls.set('judiva.sofra', sofra); }
-function mezeler() { return allProducts().filter(p => p.cat === 'mezeler'); }
+function sofraList(cat) { return SOFRA_SET[cat].map(byId).filter(Boolean); }
+function mezeler() { return sofraList('mezeler'); }
+// Meze seçilen gramajla, pasta 1 kutu, içecek 1 koli eklenir
+const sofraQty = p => p.cat === 'mezeler' ? sofra.kg : 1;
 function sofraHTML() {
   return `<div class="sofra" id="sofra">
     <div class="sf-left">
-      <div><span class="eyebrow">Meze sofrası kur</span><h3>Sofranı kendin seç.</h3></div>
-      <p>Mezeleri seçtikçe sağdaki sofra kurulur. Hepsini tek dokunuşla sepete ekleyip teklif alabilirsiniz.</p>
+      <div><span class="eyebrow">Sofra kur</span><h3>Sofranı kendin seç.</h3></div>
+      <p>Mezeleri, pastaları ve içecekleri seçtikçe sağdaki sofra kurulur. Hepsini tek dokunuşla sepete ekleyip teklif alabilirsiniz.</p>
       <div><p class="sf-step"><b>1.</b>Her mezeden ne kadar</p><div class="sizes" id="sfSizes"></div></div>
-      <div><p class="sf-step"><b>2.</b>Mezeleri seç</p><input class="sf-search" id="sfQ" type="search" placeholder="Meze ara" aria-label="Meze ara" value="${esc(sofraQ)}"><div class="tiles" id="sfTiles"></div></div>
+      <div><p class="sf-step"><b>2.</b>Sofraya ekle</p><div class="sf-tabs" id="sfTabs" role="tablist"></div><input class="sf-search" id="sfQ" type="search" placeholder="Ara" aria-label="Sofra ürünlerinde ara" value="${esc(sofraQ)}"><div class="tiles" id="sfTiles"></div></div>
     </div>
     <div class="sf-right"><div class="table" id="sfTable" role="img" aria-label="Seçilen mezelerle kurulan sofra"></div><div class="sf-sum" id="sfSum"></div></div>
   </div>`;
@@ -1028,26 +1042,33 @@ function sofraHTML() {
 function renderSofra() {
   if (!$('#sofra')) return;
   const ms = mezeler();
-  sofra.sel = sofra.sel.filter(id => ms.some(m => m.id === id));
+  const allIds = Object.values(SOFRA_SET).flat();
+  sofra.sel = sofra.sel.filter(id => allIds.includes(id) && byId(id));
   $('#sfSizes').innerHTML = SIZES.map(z => `<button data-act="sfSize" data-kg="${z.kg}" class="${z.kg === sofra.kg ? 'on' : ''}"><i style="width:${z.r}px;height:${z.r}px"></i><span>${z.label}</span><small>${z.sub}</small></button>`).join('');
   renderSofraTiles();
   const sel = sofra.sel.map(byId).filter(Boolean);
   const shown = sel.length ? sel.slice(-SLOTS.length) : ms.filter(m => m.img).slice(0, 6);
   $('#sfTable').innerHTML = shown.map((p, i) => { const [x, y, z] = SLOTS[i]; return `<div class="plate${sel.length ? '' : ' ghost'}" style="--x:${x}%;--y:${y}%;--s:${z}%">${p.img ? `<img src="${esc(p.img)}" alt="">` : ''}</div>`; }).join('')
-    + `<div class="table-label"><b>${sel.length ? sel.length + ' meze' : 'Boş sofra'}</b><span>${sel.length ? fmtQty(sel.length * sofra.kg) + ' kg toplam' : 'Soldan meze seçin'}</span></div>`;
-  const total = sel.reduce((t, p) => t + p.price * sofra.kg, 0);
-  $('#sfSum').innerHTML = sel.length ? `<div class="lns">${sel.map(p => `<div class="ln"><span>${esc(p.name)} · ${fmtQty(sofra.kg)} ${esc(unitOf(p))}</span><span>${fmt(p.price * sofra.kg)}</span></div>`).join('')}</div>
+    + `<div class="table-label"><b>${sel.length ? sel.length + ' çeşit' : 'Boş sofra'}</b><span>${sel.length ? sofraSummary(sel) : 'Soldan seçim yapın'}</span></div>`;
+  const total = sel.reduce((t, p) => t + p.price * sofraQty(p), 0);
+  $('#sfSum').innerHTML = sel.length ? `<div class="lns">${sel.map(p => `<div class="ln"><span>${esc(p.name)} · ${fmtQty(sofraQty(p))} ${esc(unitOf(p))}</span><span>${fmt(p.price * sofraQty(p))}</span></div>`).join('')}</div>
       <div class="tot big"><span>Sofra toplamı</span><span>${fmt(total)}</span></div>
       <button class="btn go" data-act="sfAdd">Sofrayı sepete ekle</button><button class="link" data-act="sfClear" style="justify-self:start">Seçimi temizle</button>`
-    : `<p class="hint">Seçtiğiniz mezeler, miktarı ve fiyatı burada listelenir.</p>`;
+    : `<p class="hint">Seçtiğiniz ürünler, miktarı ve fiyatı burada listelenir.</p>`;
+}
+function sofraSummary(sel) {
+  const n = c => sel.filter(p => p.cat === c).length;
+  return [n('mezeler') && n('mezeler') + ' meze', n('pastalar') && n('pastalar') + ' pasta', n('icecekler') && n('icecekler') + ' içecek'].filter(Boolean).join(' · ');
 }
 function renderSofraTiles() {
   const q = norm(sofraQ);
-  const list = mezeler().filter(p => !q || norm(p.name).includes(q));
+  $('#sfTabs').innerHTML = SOFRA_TABS.map(([k, l]) => { const c = sofra.sel.filter(id => byId(id)?.cat === k).length;
+    return `<button role="tab" aria-selected="${k === sofraTab}" class="${k === sofraTab ? 'on' : ''}" data-act="sfTab" data-cat="${k}">${l}${c ? ` <span class="badge num">${c}</span>` : ''}</button>`; }).join('');
+  const list = sofraList(sofraTab).filter(p => !q || norm(p.name).includes(q));
   const box = $('#sfTiles'), top = box.scrollTop;
   box.innerHTML = list.map(p => { const on = sofra.sel.includes(p.id); return `<button class="tile${on ? ' on' : ''}" data-act="sfToggle" data-id="${esc(p.id)}" aria-pressed="${on}">
     ${p.img ? `<img src="${esc(p.img)}" alt="" loading="lazy">` : '<span class="ph"><span class="mono" style="font-size:18px">J</span></span>'}
-    <span class="tn">${esc(p.name)}<small>${fmt(p.price)} / ${esc(unitOf(p))}</small></span><span class="ck">${on ? '✓' : '+'}</span></button>`; }).join('') || '<p class="hint">Bu isimde meze yok.</p>';
+    <span class="tn">${esc(p.name)}<small>${fmt(p.price)} / ${esc(unitOf(p))}</small></span><span class="ck">${on ? '✓' : '+'}</span></button>`; }).join('') || '<p class="hint">Bu isimde ürün yok.</p>';
   box.scrollTop = top;
 }
 
@@ -1352,9 +1373,10 @@ document.addEventListener('click', async e => {
     case 'sfClear': sofra.sel = []; saveSofra(); renderSofra(); break;
     case 'sfAdd': {
       const n = sofra.sel.length;
-      for (const sid of sofra.sel) { const l = cart.find(l => l.id === sid); if (l) l.qty = Math.round((l.qty + sofra.kg) * 100) / 100; else cart.push({ id: sid, qty: sofra.kg }); }
-      sofra.sel.forEach(refreshCard); sofra.sel = []; saveSofra(); saveCart(); renderCart(); renderSofra(); toast(n + ' meze sepete eklendi'); break;
+      for (const sid of sofra.sel) { const q = sofraQty(byId(sid)); const l = cart.find(l => l.id === sid); if (l) l.qty = Math.round((l.qty + q) * 100) / 100; else cart.push({ id: sid, qty: q }); }
+      sofra.sel.forEach(refreshCard); sofra.sel = []; saveSofra(); saveCart(); renderCart(); renderSofra(); toast(n + ' ürün sepete eklendi'); break;
     }
+    case 'sfTab': sofraTab = t.dataset.cat; sofraQ = ''; $('#sfQ').value = ''; renderSofraTiles(); $('#sfTiles').scrollTop = 0; break;
     case 'nwCat': e.preventDefault(); newCat = t.dataset.cat; newQ = ''; $('#nw_q').value = ''; renderNewList(); $('#nwList').scrollTop = 0; break;
     case 'cartFromProd': $('#prodDlg').close(); openCart(); break;
     case 'closeCart': closeCart(); break;
