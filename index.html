@@ -1,0 +1,1511 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Judiva menüsü: mezeler, pastalar, börekler ve içecekler. Sepetini oluştur, teklifini PDF olarak al.">
+<meta name="theme-color" content="#120b0d">
+<title>Judiva</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap">
+<style>
+/* Layout: sinematik açılış (ürün kartları dağılır, JUDIVA harfleri düşer) → yapışkan menü çubuğu → kategori bölümleri kaydırdıkça açılır → sağdan açılan sepet; panel tam ekran katman */
+:root {
+  --bg: #120b0d;
+  --surface: #1c1215;
+  --raised: #281a1f;
+  --line: #3d2b31;
+  --text: #f3e9df;
+  --muted: #b9a69f;
+  --brass: #d9aa62;
+  --wine: #6b2638;
+  --wine-hi: #b03c58;
+  --ok: #86c391;
+  --warn: #e3b75f;
+  --bad: #e7816f;
+  --paper: #fffdf9;
+  --paper-ink: #2a1e21;
+  --paper-muted: #6e6064;
+  --paper-line: #e7ddd9;
+  --display: "Outfit", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --body: "Outfit", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --gut-l: max(16px, env(safe-area-inset-left, 0px));
+  --gut-r: max(16px, env(safe-area-inset-right, 0px));
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body { background: var(--bg); color: var(--text); font-family: var(--body); font-size: 16px; line-height: 1.5; overflow-x: hidden; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 30; background: var(--bg); }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+.wrap { max-width: 1240px; margin: 0 auto; padding-left: var(--gut-l); padding-right: var(--gut-r); }
+.eyebrow { font-size: 12px; letter-spacing: .18em; text-transform: uppercase; color: var(--brass); font-weight: 500; }
+.num { font-variant-numeric: tabular-nums; }
+
+/* ---------- Açılış ---------- */
+.hero { position: relative; height: min(94svh, 860px); min-height: 580px; overflow: hidden; background: radial-gradient(120% 80% at 50% 45%, #2a141b 0%, var(--bg) 70%); }
+.hero-top { position: absolute; inset: 0 0 auto; z-index: 4; display: flex; justify-content: space-between; align-items: center; padding-block: 18px; }
+.hero-top .mark { font-family: var(--display); font-size: 20px; letter-spacing: .04em; }
+@media (max-width: 480px) { .hero-top .eyebrow { display: none; } }
+.hero-line { position: absolute; top: 0; left: 0; height: 2px; width: 0; background: var(--wine-hi); z-index: 5; animation: line 2.6s cubic-bezier(.6,0,.2,1) forwards; }
+@keyframes line { to { width: 100%; } }
+.hcard { position: absolute; left: 50%; top: 50%; width: var(--w, 150px); height: calc(var(--w, 150px) * 1.34); margin-left: calc(var(--w, 150px) / -2); margin-top: calc(var(--w, 150px) * -.67); transform: translate(var(--x1, 0), var(--y1, 0)); border-radius: 14px; overflow: hidden; background: var(--surface); border: 1px solid var(--line); z-index: var(--z, 1); transition: transform 1.15s cubic-bezier(.7,0,.2,1), height .9s cubic-bezier(.7,0,.2,1), margin .9s cubic-bezier(.7,0,.2,1), border-radius .9s, border-color .6s, box-shadow .9s; animation: cardIn .7s cubic-bezier(.2,.8,.2,1) backwards; animation-delay: calc(var(--i) * 110ms + 150ms); }
+@keyframes cardIn { from { opacity: 0; translate: 0 50px; } }
+.hcard img { display: block; width: 100%; height: 74%; object-fit: cover; transition: height .9s cubic-bezier(.7,0,.2,1); }
+.hcard .cap { padding: 8px 10px; font-size: 11px; line-height: 1.3; transition: opacity .4s; }
+.hcard .cap b { display: block; color: var(--brass); font-size: 10px; letter-spacing: .14em; text-transform: uppercase; font-weight: 500; }
+/* Açılışta ürünler dağılıp kaybolur, sahnede yalnızca JUDIVA yazısı kalır */
+.hero.go .hcard { transform: translate(var(--x2), var(--y2)) rotate(var(--r2)) scale(.55); opacity: 0; pointer-events: none; transition: transform 1.1s cubic-bezier(.7,0,.2,1), opacity .8s .15s; }
+.hero.go .hcard .cap { opacity: 0; }
+.ttl { position: absolute; left: 0; right: 0; top: 50%; translate: 0 -55%; text-align: center; z-index: 3; margin: 0; color: var(--text); pointer-events: none; }
+.ttl-in { position: relative; display: block; margin: 0 auto; width: min(82vw, 1000px); aspect-ratio: 620.63 / 116.25; }
+.ttl-in > span { position: absolute; top: 0; bottom: 0; transform: translateY(-120vh) rotate(var(--lr)); transition: transform 1.05s cubic-bezier(.25,1.35,.5,1); transition-delay: var(--ld); filter: drop-shadow(0 10px 30px rgba(0,0,0,.55)); }
+.ttl-in svg { display: block; width: 100%; height: 100%; }
+.hero.go .ttl-in > span { transform: none; }
+.hero-foot { position: absolute; left: 0; right: 0; bottom: 0; z-index: 4; padding-block: 0 28px; display: flex; justify-content: space-between; align-items: end; gap: 16px; flex-wrap: wrap; opacity: 0; translate: 0 16px; transition: opacity .8s 1.5s, translate .8s 1.5s; }
+.hero.go .hero-foot { opacity: 1; translate: 0 0; }
+.hero-foot p { margin: 0; max-width: 40ch; color: var(--muted); }
+.cta { display: inline-flex; align-items: center; gap: 10px; background: var(--wine); color: var(--text); border: 0; border-radius: 999px; padding: 12px 20px; font-weight: 500; text-decoration: none; }
+.cta:hover { background: var(--wine-hi); }
+.cta.ghost { background: transparent; border: 1px solid var(--line); }
+.cta.ghost:hover { border-color: var(--brass); background: transparent; }
+@media (prefers-reduced-motion: reduce) {
+  .hero.go .hcard { display: none; }
+  .hcard, .hcard img, .ttl-in > span, .hero-foot, .hero-line { transition: none !important; animation: none !important; }
+  .hero-line { width: 100%; }
+}
+
+/* ---------- Menü çubuğu ---------- */
+.bar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+.bar .wrap { display: grid; gap: 10px; padding-block: 10px; }
+.bar-row { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.bar .mark { font-family: var(--display); font-size: 22px; flex: none; text-decoration: none; color: var(--text); }
+.search { flex: 1; min-width: 0; position: relative; }
+.search input { width: 100%; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 8px 14px 8px 36px; }
+.search svg { position: absolute; left: 12px; top: 50%; translate: 0 -50%; width: 16px; height: 16px; stroke: var(--muted); }
+.pill-btn { flex: none; display: inline-flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 8px 14px; font-size: 14px; white-space: nowrap; }
+.pill-btn:hover { border-color: var(--brass); }
+.pill-btn .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+.pill-btn[data-role="personel"] .dot { background: var(--brass); }
+.pill-btn[data-role="mudur"] .dot { background: var(--wine-hi); }
+.cart-btn { background: var(--wine); border-color: var(--wine); }
+.cart-btn:hover { background: var(--wine-hi); border-color: var(--wine-hi); }
+.badge { min-width: 22px; height: 22px; padding: 0 6px; border-radius: 999px; background: var(--text); color: var(--bg); font-size: 12px; font-weight: 600; display: inline-grid; place-items: center; }
+.chips { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; }
+.chips::-webkit-scrollbar { display: none; }
+.chips a { flex: none; text-decoration: none; color: var(--muted); font-size: 14px; padding: 6px 14px; border-radius: 999px; border: 1px solid var(--line); }
+.chips a:hover, .chips a.on { color: var(--bg); background: var(--brass); border-color: var(--brass); }
+@media (max-width: 520px) { .chips { gap: 6px; } .chips a { flex: 1 0 auto; text-align: center; padding: 6px 9px; font-size: 13px; } }
+.hide-sm { display: inline-flex; }
+@media (max-width: 640px) { .hide-sm { display: none; } .bar .mark { font-size: 19px; } }
+
+/* ---------- Kategori bölümleri ---------- */
+main { padding-block: 24px 120px; display: grid; gap: 72px; }
+.chapter { scroll-margin-top: 120px; display: grid; gap: 28px; }
+.ch-head { position: relative; min-height: clamp(240px, 46vw, 480px); border-radius: 20px; overflow: hidden; display: grid; align-content: end; padding: clamp(20px, 4vw, 48px); isolation: isolate; }
+.ch-head img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: -2; }
+.ch-head::after { content: ""; position: absolute; inset: 0; z-index: -1; background: linear-gradient(180deg, rgba(18,11,13,.1) 0%, rgba(18,11,13,.35) 35%, rgba(18,11,13,.82) 68%, rgba(18,11,13,.97) 100%); }
+.ch-head h2 { margin: 0; font-family: var(--display); font-weight: 800; text-transform: uppercase; font-size: clamp(46px, 12vw, 160px); line-height: .9; letter-spacing: -.03em; text-wrap: balance; overflow-wrap: anywhere; color: #fff; text-shadow: 0 4px 24px rgba(0,0,0,.6); }
+.ch-head p { margin: 10px 0 0; color: var(--text); opacity: .85; max-width: 52ch; }
+.ch-head .eyebrow { margin-bottom: 6px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(clamp(150px, 40vw, 236px), 1fr)); gap: 16px; }
+.pcard { display: grid; grid-template-rows: auto 1fr auto; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; min-width: 0; }
+.pcard.in { border-color: var(--brass); }
+.pcard .ph { aspect-ratio: 4 / 3; max-width: 100%; background: var(--raised); display: grid; place-items: center; overflow: hidden; }
+.pcard .ph img { width: 100%; height: 100%; object-fit: cover; transition: transform .6s; }
+.pcard:hover .ph img { transform: scale(1.05); }
+.mono { font-family: var(--display); font-size: 40px; color: var(--line); }
+.pcard .bd { padding: 12px 12px 4px; display: grid; gap: 4px; align-content: start; min-width: 0; }
+.pcard h3 { margin: 0; font-size: 15px; font-weight: 600; line-height: 1.3; }
+.pcard .det { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.4; }
+.pcard .ft { padding: 8px 12px 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.price { font-weight: 600; color: var(--brass); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.price small { color: var(--muted); font-weight: 400; font-size: 12px; }
+.add { background: var(--wine); border: 0; border-radius: 999px; padding: 6px 12px; font-size: 13px; font-weight: 500; display: inline-flex; gap: 6px; align-items: center; }
+.add:hover { background: var(--wine-hi); }
+.step { display: inline-flex; align-items: center; border: 1px solid var(--brass); border-radius: 999px; overflow: hidden; }
+.step button { background: transparent; border: 0; width: 30px; height: 30px; font-size: 16px; }
+.step button:hover { background: var(--raised); }
+.step input { width: 46px; text-align: center; background: transparent; border: 0; font-variant-numeric: tabular-nums; font-size: 14px; -moz-appearance: textfield; }
+.step input::-webkit-outer-spin-button, .step input::-webkit-inner-spin-button { -webkit-appearance: none; }
+.tag-new { font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--brass); }
+.empty { color: var(--muted); padding: 24px 0; }
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .ch-head img { animation: chZoom linear both; animation-timeline: view(); animation-range: entry 0% cover 55%; }
+    .ch-head h2 { animation: chRise linear both; animation-timeline: view(); animation-range: entry 0% entry 90%; }
+    .pcard { animation: cardRise linear both; animation-timeline: view(); animation-range: entry 0% entry 70%; }
+  }
+}
+@keyframes chZoom { from { transform: scale(1.25); filter: brightness(.5); } to { transform: scale(1); filter: none; } }
+@keyframes chRise { from { translate: 0 28px; opacity: .35; } to { translate: 0 0; opacity: 1; } }
+@keyframes cardRise { from { translate: 0 48px; opacity: .1; scale: .96; } to { translate: 0 0; opacity: 1; scale: 1; } }
+
+.foot { border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; padding-block: 24px 40px; }
+
+/* ---------- Sepet çekmecesi ---------- */
+.scrim { position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 40; }
+.drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(460px, 100%); background: var(--surface); border-left: 1px solid var(--line); z-index: 41; display: grid; grid-template-rows: auto 1fr auto; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); padding-right: env(safe-area-inset-right, 0px); transform: translateX(100%); transition: transform .35s cubic-bezier(.6,0,.2,1); }
+.drawer.open { transform: none; }
+.dr-head { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid var(--line); gap: 12px; }
+.dr-head h2 { margin: 0; font-family: var(--display); font-weight: 700; font-size: 26px; }
+.dr-body { overflow-y: auto; padding: 16px 20px; display: grid; gap: 20px; align-content: start; }
+.dr-foot { border-top: 1px solid var(--line); padding: 14px 20px; display: grid; gap: 10px; background: var(--raised); }
+.x { background: transparent; border: 1px solid var(--line); border-radius: 999px; width: 36px; height: 36px; font-size: 18px; line-height: 1; flex: none; }
+.x:hover { border-color: var(--brass); }
+.line { display: grid; grid-template-columns: 56px 1fr auto; gap: 12px; align-items: center; }
+.line img, .line .ph { width: 56px; height: 56px; border-radius: 10px; object-fit: cover; background: var(--raised); display: grid; place-items: center; }
+.line .ph .mono { font-size: 22px; }
+.line .nm { font-size: 14px; font-weight: 500; line-height: 1.3; min-width: 0; }
+.line .sub { font-size: 12px; color: var(--muted); }
+.line .rt { display: grid; justify-items: end; gap: 4px; }
+.lines { display: grid; gap: 14px; }
+.link { background: none; border: 0; padding: 0; color: var(--muted); font-size: 12px; text-decoration: underline; text-underline-offset: 2px; }
+.link:hover { color: var(--bad); }
+.row { display: flex; gap: 8px; align-items: stretch; }
+.field { display: grid; gap: 4px; min-width: 0; }
+.field label { font-size: 12px; color: var(--muted); }
+.field input, .field select, .field textarea, .row input { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; width: 100%; min-width: 0; }
+.field textarea { resize: vertical; min-height: 64px; }
+.fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.fields .full { grid-column: 1 / -1; }
+@media (max-width: 420px) { .fields { grid-template-columns: 1fr; } }
+.sect-t { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--brass); margin: 0 0 8px; font-weight: 500; }
+.btn { background: var(--raised); border: 1px solid var(--line); border-radius: 10px; padding: 9px 14px; font-size: 14px; white-space: nowrap; }
+.btn:hover { border-color: var(--brass); }
+.btn.pri { background: var(--wine); border-color: var(--wine); font-weight: 500; }
+.btn.pri:hover { background: var(--wine-hi); border-color: var(--wine-hi); }
+.btn.danger:hover { border-color: var(--bad); color: var(--bad); }
+.btn[disabled] { opacity: .5; cursor: not-allowed; }
+.msg { font-size: 13px; margin: 6px 0 0; }
+.msg.ok { color: var(--ok); } .msg.bad { color: var(--bad); }
+.tot { display: flex; justify-content: space-between; font-variant-numeric: tabular-nums; font-size: 14px; }
+.tot.big { font-size: 20px; font-weight: 600; }
+.tot.big span:last-child { color: var(--brass); }
+.tot.disc span:last-child { color: var(--ok); }
+.who { font-size: 13px; color: var(--muted); background: var(--bg); border: 1px dashed var(--line); border-radius: 10px; padding: 8px 12px; }
+
+/* ---------- Diyaloglar ---------- */
+dialog { background: var(--surface); color: var(--text); border: 1px solid var(--line); border-radius: 18px; padding: 0; width: min(520px, calc(100% - 32px)); max-height: calc(100% - 32px); }
+dialog::backdrop { background: rgba(0,0,0,.6); }
+dialog.wide { width: min(940px, calc(100% - 24px)); }
+.dl-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--line); position: sticky; top: 0; background: var(--surface); z-index: 2; }
+.dl-head h2 { margin: 0; font-family: var(--display); font-weight: 700; font-size: 22px; }
+.dl-body { padding: 18px 20px 22px; display: grid; gap: 16px; }
+.roles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.roles button { background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 12px 8px; display: grid; gap: 2px; text-align: left; }
+.roles button small { color: var(--muted); font-size: 12px; line-height: 1.3; }
+.roles button.on { border-color: var(--brass); background: var(--raised); }
+@media (max-width: 460px) { .roles { grid-template-columns: 1fr; } }
+.hint { font-size: 12px; color: var(--muted); margin: 0; }
+.doc-scroll { overflow: auto; background: var(--bg); border-radius: 12px; padding: 12px; }
+.doc-fit { transform-origin: top left; }
+.acts { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* ---------- Teklif belgesi (A4 kâğıt) ---------- */
+.doc { width: 794px; min-height: 1123px; background: var(--paper); color: var(--paper-ink); font-family: var(--body); padding: 56px 56px 48px; font-size: 13px; line-height: 1.45; display: flex; flex-direction: column; gap: 24px; }
+.doc-top { display: flex; justify-content: space-between; align-items: start; gap: 24px; border-bottom: 2px solid var(--wine); padding-bottom: 18px; }
+.doc-brand { line-height: 1; }
+.doc-brand small { display: block; font-family: var(--body); font-size: 11px; letter-spacing: .2em; text-transform: uppercase; color: #a8782f; margin-top: 8px; }
+.doc-meta { text-align: right; font-size: 12px; color: var(--paper-muted); display: grid; gap: 2px; }
+.doc-meta b { color: var(--paper-ink); font-size: 18px; font-weight: 700; }
+.doc-parties { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+.doc-parties h4 { margin: 0 0 4px; font-size: 10px; letter-spacing: .18em; text-transform: uppercase; color: #a8782f; font-weight: 600; }
+.doc-parties p { margin: 0; }
+.doc table { color: var(--paper-ink); font-size: 13px; width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.doc th { text-align: left; font-size: 10px; letter-spacing: .14em; text-transform: uppercase; color: var(--paper-muted); font-weight: 600; padding: 8px 6px; border-bottom: 1px solid var(--paper-ink); }
+.doc td { padding: 8px 6px; border-bottom: 1px solid var(--paper-line); vertical-align: middle; }
+.doc td.r, .doc th.r { text-align: right; white-space: nowrap; }
+.doc .it { display: flex; gap: 10px; align-items: center; }
+.doc .it img { width: 40px; height: 40px; border-radius: 6px; object-fit: cover; flex: none; }
+.doc .it small { display: block; color: var(--paper-muted); font-size: 11px; }
+.doc-sum { margin-left: auto; width: 300px; display: grid; gap: 6px; font-variant-numeric: tabular-nums; }
+.doc-sum div { display: flex; justify-content: space-between; }
+.doc-sum .g { border-top: 2px solid var(--wine); padding-top: 8px; font-size: 18px; font-weight: 700; color: var(--wine); }
+.doc-sum .d { color: #2f7a43; }
+.doc-note { background: #f6efe9; border-radius: 8px; padding: 12px 14px; font-size: 12px; }
+.doc-foot { margin-top: auto; border-top: 1px solid var(--paper-line); padding-top: 12px; font-size: 11px; color: var(--paper-muted); display: flex; justify-content: space-between; gap: 16px; }
+
+/* ---------- Panel ---------- */
+.panel { position: fixed; inset: 0; z-index: 35; background: var(--bg); overflow-y: auto; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+.pn-head { position: sticky; top: 0; z-index: 3; background: var(--bg); border-bottom: 1px solid var(--line); }
+.pn-head .wrap { display: flex; align-items: center; gap: 12px; padding-block: 12px; flex-wrap: wrap; }
+.pn-head h2 { margin: 0; font-family: var(--display); font-weight: 700; font-size: 24px; flex: 1; min-width: 0; }
+.tabs { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding-block: 0 12px; }
+.tabs button { flex: none; background: transparent; border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px; font-size: 14px; color: var(--muted); }
+.tabs button.on { background: var(--text); color: var(--bg); border-color: var(--text); }
+.pn-body { padding-block: 24px 60px; display: grid; gap: 20px; }
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
+[hidden] { display: none !important; }
+.acc-off { width: 100%; text-align: left; color: inherit; font: inherit; cursor: pointer; background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; grid-template-columns: 1fr auto !important; }
+.acc-off:hover { border-color: var(--brass); }
+.ozet { display: grid; gap: 14px; }
+.acc-off .rt { display: grid; justify-items: end; gap: 4px; }
+button.kpi { text-align: left; color: inherit; font: inherit; cursor: pointer; }
+button.kpi:hover { border-color: var(--brass); }
+.kpi { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; }
+.kpi span { font-size: 12px; color: var(--muted); }
+.kpi b { display: block; font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.filters { display: flex; gap: 8px; flex-wrap: wrap; }
+.filters > * { flex: 1 1 160px; min-width: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; }
+.tbl-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 14px; }
+.tbl { width: 100%; border-collapse: collapse; font-size: 14px; min-width: 720px; }
+.tbl th { text-align: left; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); font-weight: 500; padding: 10px 12px; background: var(--surface); border-bottom: 1px solid var(--line); }
+.tbl td { padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.tbl tr:last-child td { border-bottom: 0; }
+.tbl tbody tr:hover { background: var(--surface); }
+.tbl td.r, .tbl th.r { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.st { font-size: 12px; border-radius: 999px; padding: 3px 10px; border: 1px solid currentColor; white-space: nowrap; background: transparent; }
+.st[data-s="Yeni"] { color: var(--brass); }
+.st[data-s="Gönderildi"] { color: var(--muted); }
+.st[data-s="Kabul edildi"] { color: var(--ok); }
+.st[data-s="Reddedildi"] { color: var(--bad); }
+.st option { color: var(--text); background: var(--surface); }
+.cards2 { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 12px; }
+.ccard { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; display: grid; gap: 6px; text-align: left; min-width: 0; }
+button.ccard:hover { border-color: var(--brass); }
+.ccard h3 { margin: 0; font-size: 16px; font-weight: 600; }
+.ccard .meta { font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
+.ccard .nums { display: flex; gap: 16px; font-size: 13px; font-variant-numeric: tabular-nums; }
+.ccard .nums b { color: var(--brass); }
+.box { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: grid; gap: 12px; }
+.box h3 { margin: 0; font-size: 16px; font-weight: 600; }
+.split { display: grid; grid-template-columns: minmax(0, 360px) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 860px) { .split { grid-template-columns: 1fr; } }
+.chip { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: var(--raised); color: var(--muted); white-space: nowrap; }
+.toast { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); translate: -50% 0; z-index: 60; background: var(--text); color: var(--bg); padding: 10px 18px; border-radius: 999px; font-size: 14px; font-weight: 500; box-shadow: 0 10px 30px rgba(0,0,0,.4); max-width: calc(100% - 32px); }
+.sync { font-size: 12px; color: var(--muted); }
+.fab { position: fixed; right: calc(16px + env(safe-area-inset-right, 0px)); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 19; display: none; }
+@media (max-width: 640px) { .fab.show { display: inline-flex; } }
+.mark .logo { display: block; height: 18px; width: auto; color: var(--text); }
+.bar .mark .logo { height: 17px; }
+.doc-brand .logo { display: block; height: 34px; width: auto; color: #5f2534; }
+.pcard { cursor: pointer; }
+.pv { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 0; }
+.pv-img { background: var(--raised); min-height: 280px; display: grid; place-items: center; }
+.pv-img img { width: 100%; height: 100%; max-height: 560px; object-fit: cover; display: block; }
+.pv-info { padding: 24px; display: grid; gap: 16px; align-content: start; min-width: 0; }
+.pv-info h3 { margin: 0; font-size: clamp(24px, 4vw, 34px); line-height: 1.1; font-weight: 700; letter-spacing: -.02em; text-wrap: balance; }
+.pv-price { font-size: 26px; font-weight: 600; color: var(--brass); font-variant-numeric: tabular-nums; }
+.pv-price small { font-size: 14px; color: var(--muted); font-weight: 400; }
+.pv dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; font-size: 14px; }
+.pv dt { color: var(--muted); } .pv dd { margin: 0; }
+.pv-buy { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.pv-buy .step button { width: 40px; height: 40px; } .pv-buy .step input { width: 64px; font-size: 16px; }
+.pv-line { font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.rel { padding: 0 24px 24px; display: grid; gap: 10px; }
+.rel-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.rel-grid button { background: var(--bg); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; padding: 0; text-align: left; display: grid; }
+.rel-grid button:hover { border-color: var(--brass); }
+.rel-grid img, .rel-grid .ph { width: 100%; aspect-ratio: 4 / 3; object-fit: cover; display: grid; place-items: center; background: var(--raised); }
+.rel-grid span { padding: 6px 8px; font-size: 12px; line-height: 1.3; }
+.rel-grid b { display: block; color: var(--brass); font-weight: 500; }
+@media (max-width: 720px) { .pv { grid-template-columns: 1fr; } .pv-img { min-height: 0; } .pv-img img { max-height: 320px; aspect-ratio: 4 / 3; } .rel-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.sofra { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr); gap: 28px; align-items: start; background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: clamp(16px, 3vw, 32px); }
+.sf-left { display: grid; gap: 20px; min-width: 0; }
+.sf-left h3 { margin: 4px 0 0; font-size: clamp(26px, 4vw, 40px); font-weight: 800; letter-spacing: -.03em; line-height: 1; }
+.sf-left > p { margin: 0; color: var(--muted); max-width: 46ch; }
+.sf-step { font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; }
+.sf-step b { color: var(--wine-hi); font-weight: 600; margin-right: 6px; }
+.sizes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.sizes button { background: var(--bg); border: 1px solid var(--line); border-radius: 14px; padding: 12px 8px; display: grid; justify-items: center; gap: 6px; }
+.sizes button i { display: block; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #c9573a, #7a2a1a); }
+.sizes button span { font-size: 14px; font-weight: 600; }
+.sizes button small { font-size: 11px; color: var(--muted); }
+.sizes button.on { border-color: var(--wine-hi); box-shadow: 0 0 0 1px var(--wine-hi) inset; }
+.sf-search { width: 100%; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; margin-bottom: 10px; }
+.tiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; max-height: 470px; overflow-y: auto; padding-right: 4px; }
+.tile { display: grid; grid-template-columns: 44px minmax(0, 1fr) 22px; gap: 10px; align-items: center; background: var(--raised); border: 1px solid var(--line); border-radius: 12px; padding: 6px 10px 6px 6px; text-align: left; }
+.tile img, .tile .ph { width: 44px; height: 44px; border-radius: 8px; object-fit: cover; background: var(--bg); display: grid; place-items: center; }
+.tile .tn { font-size: 13px; line-height: 1.25; min-width: 0; overflow-wrap: anywhere; }
+.tile .tn small { display: block; color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; }
+.tile .ck { width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--line); display: grid; place-items: center; font-size: 13px; }
+.tile.on { border-color: var(--wine-hi); background: color-mix(in srgb, var(--wine) 30%, var(--raised)); }
+.tile.on .ck { background: var(--wine-hi); border-color: var(--wine-hi); }
+.sf-right { position: sticky; top: 130px; display: grid; gap: 14px; min-width: 0; }
+.table { position: relative; aspect-ratio: 4 / 3; max-width: 100%; border-radius: 18px; overflow: hidden; background: repeating-linear-gradient(92deg, rgba(255,255,255,.025) 0 2px, transparent 2px 23px), radial-gradient(120% 90% at 50% 40%, #4a2a1c 0%, #2a1610 60%, #160c08 100%); box-shadow: inset 0 0 80px rgba(0,0,0,.6); }
+.plate { position: absolute; left: var(--x); top: var(--y); width: var(--s); aspect-ratio: 1; translate: -50% -50%; border-radius: 50%; border: clamp(4px, .7vw, 8px) solid #f4ede4; background: #f4ede4; box-shadow: 0 14px 28px -8px rgba(0,0,0,.7); animation: plateIn .45s cubic-bezier(.3,1.5,.5,1) backwards; }
+.plate img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; display: block; }
+.plate.ghost { opacity: .22; animation: none; }
+@keyframes plateIn { from { scale: .3; opacity: 0; } }
+.table-label { position: absolute; left: 0; right: 0; bottom: 0; padding: 40px 18px 14px; background: linear-gradient(transparent, rgba(10,6,5,.85)); display: flex; justify-content: space-between; align-items: end; gap: 12px; pointer-events: none; }
+.table-label b { font-size: clamp(28px, 5vw, 48px); font-weight: 800; letter-spacing: -.03em; line-height: 1; }
+.table-label span { font-size: 13px; color: var(--muted); text-align: right; }
+.sf-sum { background: var(--bg); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; display: grid; gap: 8px; }
+.sf-sum .ln { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; font-variant-numeric: tabular-nums; }
+.sf-sum .ln span:first-child { color: var(--muted); min-width: 0; }
+.sf-sum .lns { display: grid; gap: 4px; max-height: 150px; overflow-y: auto; }
+.btn.go { background: var(--brass); border-color: var(--brass); color: var(--bg); font-weight: 600; padding: 12px 14px; }
+.btn.go:hover { filter: brightness(1.08); border-color: var(--brass); }
+@media (max-width: 860px) { .sofra { grid-template-columns: 1fr; } .sf-right { position: static; order: -1; } .tiles { max-height: 380px; } }
+@media (max-width: 520px) { .tiles { grid-template-columns: 1fr; } }
+.layers { position: relative; height: 240vh; background: var(--bg); }
+.ly-stick { position: sticky; top: 0; height: 100svh; min-height: 560px; overflow: hidden; display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); align-items: center; gap: 24px; }
+.ly-copy { display: grid; gap: 14px; align-content: center; min-width: 0; }
+.ly-copy h2 { margin: 0; font-size: clamp(38px, 6vw, 84px); font-weight: 800; letter-spacing: -.035em; line-height: .95; text-wrap: balance; }
+.ly-copy p { margin: 0; color: var(--muted); max-width: 40ch; }
+.ly-copy .meta { display: flex; gap: 8px; flex-wrap: wrap; }
+.cake { --W: min(320px, 26vw); --ry: calc(var(--W) * .2); --gap: clamp(34px, 6.2vh, 66px); --k: 1.15; position: relative; height: 100%; min-height: 420px; }
+.cake-plate { position: absolute; left: 50%; bottom: 14%; width: calc(var(--W) * 1.4); height: calc(var(--ry) * 2.7); translate: -50% 50%; border-radius: 50%; background: radial-gradient(closest-side, #f6efe6 0%, #e7ddd1 70%, #b9aea2 100%); box-shadow: 0 30px 60px -10px rgba(0,0,0,.8); }
+.ly { position: absolute; left: 50%; bottom: calc(14% + var(--b)); width: var(--W); height: calc(var(--h) + var(--ry) * 2); margin-left: calc(var(--W) / -2); border-radius: calc(var(--W) / 2) / var(--ry); background: var(--side); transform: translateY(calc(var(--i) * var(--gap) * var(--e, 0) * -1)); box-shadow: 0 calc(10px * var(--e, 0)) 24px -6px rgba(0,0,0,calc(.6 * var(--e, 0))); }
+.ly::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: calc(var(--ry) * 2); border-radius: 50%; background: var(--top); }
+.ly.berries { background: transparent; box-shadow: none; }
+.ly.berries::before { display: none; }
+.berry { position: absolute; aspect-ratio: 1; border-radius: 50%; translate: -50% -60%; box-shadow: 0 5px 8px rgba(0,0,0,.45); }
+.berry.bb { width: 8.5%; background: radial-gradient(circle at 30% 30%, #8d6fa0 0 6%, transparent 9%) 0 0/34% 34%, radial-gradient(circle at 35% 30%, #5b3a6e, #2a1233 60%, #12060f); }
+.berry.rc { width: 5%; background: radial-gradient(circle at 35% 30%, #ffd0d6 0 10%, #f02a3c 35%, #a10a1c 80%); }
+.berry.rb { width: 11%; background: radial-gradient(circle at 30% 30%, #ff9fb0 0 6%, transparent 9%) 0 0/30% 30%, radial-gradient(circle at 35% 30%, #ff5d79, #c8173a 60%, #7d0a20); }
+.ly-lab { position: absolute; top: var(--ry); width: 150px; line-height: 1.25; font-size: 14px; display: flex; align-items: center; gap: 10px; opacity: var(--e, 0); transition: opacity .2s; }
+.ly-lab b { display: block; font-weight: 600; }
+.ly-lab small { display: block; color: var(--muted); font-size: 12px; }
+.ly-lab::before { content: ""; width: clamp(18px, 4vw, 56px); height: 1px; background: var(--brass); flex: none; }
+.ly-lab.r { left: calc(100% + 8px); }
+.ly-lab.l { right: calc(100% + 8px); flex-direction: row-reverse; text-align: right; }
+.ly-hint { position: absolute; left: 50%; bottom: 3%; translate: -50% 0; font-size: 12px; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); opacity: calc(1 - var(--e, 0) * 2); }
+@media (max-width: 760px) {
+  .ly-stick { grid-template-columns: 1fr; grid-template-rows: auto 1fr; align-content: start; padding-block: 56px 0; gap: 0; }
+  .ly-copy h2 { font-size: clamp(32px, 9vw, 44px); }
+  .cake { --W: min(210px, 46vw); --k: .8; --gap: clamp(26px, 4.6vh, 40px); }
+  .ly-lab { font-size: 11px; white-space: normal; width: 20vw; gap: 6px; line-height: 1.25; }
+  .ly-lab::before { width: 10px; }
+}
+.nw { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.nw-menu { display: grid; gap: 12px; min-width: 0; }
+.prows { display: grid; gap: 8px; max-height: calc(100svh - 270px); min-height: 320px; overflow-y: auto; padding-right: 4px; }
+.prow { display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; gap: 12px; align-items: center; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 8px 12px 8px 8px; cursor: pointer; }
+.prow.in { border-color: var(--brass); }
+.prow img, .prow .ph { width: 56px; height: 56px; border-radius: 10px; object-fit: cover; background: var(--raised); display: grid; place-items: center; }
+.prow .pn { min-width: 0; } .prow .pn b { display: block; font-size: 14px; font-weight: 600; line-height: 1.3; }
+.prow .pn small { display: block; font-size: 12px; color: var(--muted); }
+.prow .ft { display: grid; justify-items: end; gap: 6px; }
+.nw-cart { position: sticky; top: 120px; max-height: calc(100svh - 140px); overflow-y: auto; }
+.nw-body { display: grid; gap: 18px; } .nw-foot { display: grid; gap: 10px; border-top: 1px solid var(--line); padding-block: 12px 16px; position: sticky; bottom: -16px; background: var(--surface); margin-bottom: -16px; }
+.nw-foot:empty { display: none; }
+@media (max-width: 860px) { .nw { grid-template-columns: 1fr; } .prows { max-height: 60svh; } .nw-cart { position: static; max-height: none; } }
+@media (max-width: 480px) { .prow { grid-template-columns: 48px minmax(0, 1fr); } .prow img, .prow .ph { width: 48px; height: 48px; } .prow .ft { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; } }
+.cake-board { position: absolute; left: 50%; bottom: 14%; width: calc(var(--W) * 1.05); height: calc(var(--ry) * 2.1); translate: -50% 5px; border-radius: 50%; background: radial-gradient(ellipse at 40% 35%, #f3d68a, #c9a24a 55%, #8d6a24); box-shadow: 0 3px 0 #7a5a1c; }
+.ly.coat::after { content: ""; position: absolute; inset: 0; border-radius: inherit; background: linear-gradient(90deg,#c9c0b2,#f4efe7 26%,#ffffff 48%,#f1ece3 76%,#bdb3a3); opacity: clamp(0, calc(1 - var(--e, 0) * 3), 1); pointer-events: none; }
+#berries { position: absolute; inset: 0; }
+.ly.berries { z-index: 2; }
+.vid-card { position: absolute; left: 46%; top: 50%; translate: -50% -50%; height: min(92svh, 900px); aspect-ratio: 556 / 800; max-width: 100%; background: #120b0d url("cake/f01.jpg") center / cover; }
+.vid-card canvas { width: 100%; height: 100%; display: block; }
+.vl { position: absolute; display: flex; align-items: center; gap: 6px; width: 112px; line-height: 1.2; font-size: 13px; translate: 0 -50%; opacity: clamp(0, calc((var(--e, 0) - .75) * 5), 1); }
+.vl b { font-weight: 600; }
+.vl::before { content: ""; width: 18px; flex: none; height: 1px; background: var(--brass); }
+.vl.r { left: calc(100% - 14px); }
+.vl.l { right: calc(100% - 14px); flex-direction: row-reverse; text-align: right; }
+.vid-list { display: none; }
+@media (max-width: 760px) {
+  .vid-card { height: min(54svh, 500px); top: 44%; left: 50%; }
+  .vl { display: none; }
+  .vid-list { display: block; position: absolute; left: 12px; right: 12px; bottom: 2%; z-index: 3; margin: 0; padding: 10px 14px; border-radius: 14px; background: rgba(18,11,13,.88); border: 1px solid var(--line); text-align: center; font-size: 13px; line-height: 1.45; color: var(--text); opacity: clamp(0, calc((var(--e, 0) - .7) * 4), 1); }
+}
+</style>
+
+<div class="hero" id="hero">
+  <div class="hero-line"></div>
+  <div class="hero-top wrap">
+    <span class="mark"><svg class="logo" viewBox="0 0 620.62 114.25" role="img" aria-label="Judiva"><path fill="currentColor" fill-rule="evenodd" d="M14.50 0.25 L13.50 1.75 L13.50 20.25 L14.25 21.38 L50.25 21.62 L51.00 22.38 L51.38 70.50 L50.88 77.62 L49.25 83.88 L47.38 87.38 L43.75 90.38 L38.25 92.00 L31.75 91.50 L27.62 90.12 L20.25 85.62 L15.12 80.38 L13.75 80.25 L0.62 95.62 L0.00 97.62 L7.12 104.25 L11.88 107.62 L17.62 110.62 L22.75 112.25 L30.25 113.88 L40.75 114.25 L48.75 113.12 L54.62 111.38 L62.12 107.12 L68.00 101.50 L73.12 93.12 L75.50 85.50 L76.62 76.00 L76.38 1.00 L74.88 0.12Z M97.25 0.50 L96.75 1.50 L97.12 70.00 L98.88 80.50 L100.25 84.88 L102.75 90.50 L106.75 96.88 L112.12 102.50 L120.62 108.25 L127.62 111.12 L138.88 113.62 L154.00 114.12 L162.38 112.75 L172.38 109.38 L179.50 104.88 L182.88 102.00 L188.25 96.12 L192.00 90.00 L195.25 82.62 L197.00 75.75 L197.00 72.50 L195.75 73.25 L191.75 78.88 L185.88 84.50 L179.75 88.12 L171.50 91.12 L163.00 92.62 L151.88 93.00 L141.75 91.25 L133.62 87.50 L129.12 83.38 L126.38 79.50 L124.12 74.38 L123.12 69.12 L122.50 60.88 L122.75 5.25 L122.38 1.00 L121.12 0.12 L98.12 0.12Z M196.75 0.25 L173.75 0.12 L172.62 1.25 L172.50 65.75 L171.38 72.12 L170.00 76.00 L166.00 82.62 L161.50 87.12 L161.62 88.12 L165.62 87.75 L174.00 85.25 L178.38 83.12 L183.62 79.50 L186.38 77.00 L191.50 70.75 L195.75 62.50 L197.75 53.00 L197.88 4.75 L197.75 1.50Z M219.38 0.50 L218.88 1.62 L218.88 110.12 L219.25 111.25 L220.88 112.00 L273.38 111.88 L281.88 111.00 L290.38 109.00 L297.50 106.38 L303.88 103.12 L311.25 97.75 L317.00 91.75 L323.75 80.62 L327.62 69.38 L329.12 60.00 L328.75 47.12 L326.12 36.62 L320.75 25.25 L315.38 17.62 L308.62 11.62 L300.50 6.62 L294.38 4.00 L284.50 1.25 L274.12 0.12 L220.75 0.00Z M244.62 22.38 L245.75 21.88 L267.50 21.88 L277.25 22.62 L283.75 24.50 L288.88 27.00 L293.38 30.62 L297.50 35.25 L300.12 39.75 L302.38 46.88 L303.25 53.12 L302.88 62.12 L301.50 67.88 L298.50 74.88 L295.88 78.62 L291.50 82.75 L285.00 86.62 L280.88 88.12 L275.88 89.12 L245.38 89.38 L244.38 88.75 L243.88 87.25 L244.00 23.50Z M347.62 28.62 L346.62 29.25 L346.25 31.38 L346.38 110.38 L346.88 111.38 L347.88 111.88 L369.88 111.88 L371.12 111.00 L371.38 30.00 L370.00 28.62Z M346.62 0.88 L346.25 14.50 L347.00 18.00 L348.50 19.75 L352.75 21.25 L359.62 21.50 L365.50 20.12 L367.88 18.88 L369.50 17.25 L370.75 14.25 L371.50 7.75 L371.25 1.88 L370.38 0.38 L348.00 0.12Z M544.38 0.50 L543.25 2.12 L502.00 94.62 L495.88 109.12 L495.75 111.62 L511.00 112.12 L521.00 111.75 L522.50 110.00 L525.62 101.00 L529.25 95.38 L532.62 92.00 L536.25 89.38 L540.38 87.38 L547.75 85.38 L555.50 84.38 L564.62 84.75 L571.88 85.88 L578.25 87.75 L582.12 89.88 L585.38 93.25 L593.12 110.25 L594.62 111.88 L618.88 112.00 L620.38 111.62 L620.62 109.88 L571.12 0.88 L569.38 0.00 L549.50 0.00Z M557.25 27.25 L560.00 32.25 L574.50 65.38 L575.00 67.75 L573.25 68.25 L564.75 67.12 L559.62 67.12 L551.25 68.25 L544.88 70.12 L540.00 72.25 L533.75 75.88 L529.00 79.88 L522.88 86.38 L521.50 87.00 L522.00 84.75 L527.62 76.50 L532.50 72.25 L538.50 68.38 L555.50 28.75 L556.50 27.25Z M384.38 0.38 L383.88 1.38 L430.50 110.50 L431.25 111.38 L433.50 112.00 L455.62 111.62 L457.88 108.00 L469.25 81.12 L503.38 4.50 L504.38 0.75 L502.88 0.00 L480.25 0.12 L479.00 0.75 L473.12 13.38 L445.50 77.88 L444.38 78.50 L443.38 77.50 L423.38 28.38 L411.62 0.88 L409.38 0.00 L386.00 0.00Z"/></svg></span>
+    <span class="eyebrow">Meze · Pasta · Börek · İçecek</span>
+  </div>
+  <div id="hcards"></div>
+  <h1 class="ttl" aria-label="Judiva"><span class="ttl-in"><span style="left:1.289%;width:12.668%;--lr:-14deg;--ld:0ms"><svg viewBox="0 0 78.62 116.25" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M15.50 1.25 L14.50 2.75 L14.50 21.25 L15.25 22.38 L51.25 22.62 L52.00 23.38 L52.38 71.50 L51.88 78.62 L50.25 84.88 L48.38 88.38 L44.75 91.38 L39.25 93.00 L32.75 92.50 L28.62 91.12 L21.25 86.62 L16.12 81.38 L14.75 81.25 L1.62 96.62 L1.00 98.62 L8.12 105.25 L12.88 108.62 L18.62 111.62 L23.75 113.25 L31.25 114.88 L41.75 115.25 L49.75 114.12 L55.62 112.38 L63.12 108.12 L69.00 102.50 L74.12 94.12 L76.50 86.50 L77.62 77.00 L77.38 2.00 L75.88 1.12Z"/></svg></span><span style="left:16.878%;width:16.615%;--lr:9deg;--ld:90ms"><svg viewBox="0 0 103.12 116.25" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M1.50 1.50 L1.00 2.50 L1.38 71.00 L3.12 81.50 L4.50 85.88 L7.00 91.50 L11.00 97.88 L16.38 103.50 L24.88 109.25 L31.88 112.12 L43.12 114.62 L58.25 115.12 L66.62 113.75 L76.62 110.38 L83.75 105.88 L87.12 103.00 L92.50 97.12 L96.25 91.00 L99.50 83.62 L101.25 76.75 L101.25 73.50 L100.00 74.25 L96.00 79.88 L90.12 85.50 L84.00 89.12 L75.75 92.12 L67.25 93.62 L56.12 94.00 L46.00 92.25 L37.88 88.50 L33.38 84.38 L30.62 80.50 L28.38 75.38 L27.38 70.12 L26.75 61.88 L27.00 6.25 L26.62 2.00 L25.38 1.12 L2.38 1.12Z M101.00 1.25 L78.00 1.12 L76.88 2.25 L76.75 66.75 L75.62 73.12 L74.25 77.00 L70.25 83.62 L65.75 88.12 L65.88 89.12 L69.88 88.75 L78.25 86.25 L82.62 84.12 L87.88 80.50 L90.62 78.00 L95.75 71.75 L100.00 63.50 L102.00 54.00 L102.12 5.75 L102.00 2.50Z"/></svg></span><span style="left:36.556%;width:18.086%;--lr:-6deg;--ld:180ms"><svg viewBox="0 0 112.25 116.25" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M1.50 1.50 L1.00 2.62 L1.00 111.12 L1.38 112.25 L3.00 113.00 L55.50 112.88 L64.00 112.00 L72.50 110.00 L79.62 107.38 L86.00 104.12 L93.38 98.75 L99.12 92.75 L105.88 81.62 L109.75 70.38 L111.25 61.00 L110.88 48.12 L108.25 37.62 L102.88 26.25 L97.50 18.62 L90.75 12.62 L82.62 7.62 L76.50 5.00 L66.62 2.25 L56.25 1.12 L2.88 1.00Z M26.75 23.38 L27.88 22.88 L49.62 22.88 L59.38 23.62 L65.88 25.50 L71.00 28.00 L75.50 31.62 L79.62 36.25 L82.25 40.75 L84.50 47.88 L85.38 54.12 L85.00 63.12 L83.62 68.88 L80.62 75.88 L78.00 79.62 L73.62 83.75 L67.12 87.62 L63.00 89.12 L58.00 90.12 L27.50 90.38 L26.50 89.75 L26.00 88.25 L26.12 24.50Z"/></svg></span><span style="left:57.079%;width:4.391%;--lr:12deg;--ld:260ms"><svg viewBox="0 0 27.25 116.25" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M2.38 29.62 L1.38 30.25 L1.00 32.38 L1.12 111.38 L1.62 112.38 L2.62 112.88 L24.62 112.88 L25.88 112.00 L26.12 31.00 L24.75 29.62Z M1.38 1.88 L1.00 15.50 L1.75 19.00 L3.25 20.75 L7.50 22.25 L14.38 22.50 L20.25 21.12 L22.62 19.88 L24.25 18.25 L25.50 15.25 L26.25 8.75 L26.00 2.88 L25.12 1.38 L2.75 1.12Z"/></svg></span><span style="left:63.142%;width:38.469%;--lr:-8deg;--ld:340ms"><svg viewBox="0 0 238.75 116.25" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="M161.50 1.50 L160.38 3.12 L119.12 95.62 L113.00 110.12 L112.88 112.62 L128.12 113.12 L138.12 112.75 L139.62 111.00 L142.75 102.00 L146.38 96.38 L149.75 93.00 L153.38 90.38 L157.50 88.38 L164.88 86.38 L172.62 85.38 L181.75 85.75 L189.00 86.88 L195.38 88.75 L199.25 90.88 L202.50 94.25 L210.25 111.25 L211.75 112.88 L236.00 113.00 L237.50 112.62 L237.75 110.88 L188.25 1.88 L186.50 1.00 L166.62 1.00Z M174.38 28.25 L177.12 33.25 L191.62 66.38 L192.12 68.75 L190.38 69.25 L181.88 68.12 L176.75 68.12 L168.38 69.25 L162.00 71.12 L157.12 73.25 L150.88 76.88 L146.12 80.88 L140.00 87.38 L138.62 88.00 L139.12 85.75 L144.75 77.50 L149.62 73.25 L155.62 69.38 L172.62 29.75 L173.62 28.25Z M1.50 1.38 L1.00 2.38 L47.62 111.50 L48.38 112.38 L50.62 113.00 L72.75 112.62 L75.00 109.00 L86.38 82.12 L120.50 5.50 L121.50 1.75 L120.00 1.00 L97.38 1.12 L96.12 1.75 L90.25 14.38 L62.62 78.88 L61.50 79.50 L60.50 78.50 L40.50 29.38 L28.75 1.88 L26.50 1.00 L3.12 1.00Z"/></svg></span></span></h1>
+  <div class="hero-foot wrap">
+    <p>Menüden ürün seçin, sepetinizi oluşturun, teklifinizi PDF olarak alın. Kuponunuz varsa sepette uygulayın.</p>
+    <a class="cta" href="#menu">Menüyü aç ↓</a>
+  </div>
+</div>
+
+<section class="layers" id="katlar" aria-label="Orman meyveli pasta katmanları">
+  <div class="ly-stick wrap">
+    <div class="ly-copy">
+      <span class="eyebrow">Pastalar · Orman Meyveli Pasta</span>
+      <h2>Katman katman Judiva.</h2>
+      <p>Aşağı kaydırdıkça Orman Meyveli Pasta katlarına ayrılıyor, yukarı kaydırınca yeniden birleşiyor. 12 dilimlik kutu, dilim başı 145 g.</p>
+      <div class="meta"><a class="cta" href="#urun-264">Ürünü incele</a><a class="cta ghost" href="#cat-pastalar">Tüm pastalar</a></div>
+    </div>
+    <div class="cake" id="cake" style="--e:0">
+      <div class="vid-card" id="vidCard">
+        <canvas id="cakeCv" width="556" height="800" role="img" aria-label="Orman Meyveli Pasta katlarına ayrılıyor"></canvas>
+        <span class="vl r" style="top:8.1%"><b>Orman meyveleri</b></span><span class="vl l" style="top:21.6%"><b>Meyve jölesi</b></span><span class="vl r" style="top:35.0%"><b>Krema</b></span><span class="vl l" style="top:47.8%"><b>Pandispanya</b></span><span class="vl r" style="top:58.1%"><b>Orman meyvesi dolgusu</b></span><span class="vl l" style="top:67.7%"><b>Krema</b></span><span class="vl r" style="top:79.2%"><b>Pandispanya</b></span>
+      </div>
+      <p class="vid-list">Kat sırası: orman meyveleri, meyve jölesi, krema, pandispanya, orman meyvesi dolgusu, krema, pandispanya</p>
+      <span class="ly-hint">Kaydır ↓</span>
+    </div>
+  </div>
+</section>
+
+<div class="bar" id="menu">
+  <div class="wrap">
+    <div class="bar-row">
+      <a class="mark" href="#hero"><svg class="logo" viewBox="0 0 620.62 114.25" role="img" aria-label="Judiva"><path fill="currentColor" fill-rule="evenodd" d="M14.50 0.25 L13.50 1.75 L13.50 20.25 L14.25 21.38 L50.25 21.62 L51.00 22.38 L51.38 70.50 L50.88 77.62 L49.25 83.88 L47.38 87.38 L43.75 90.38 L38.25 92.00 L31.75 91.50 L27.62 90.12 L20.25 85.62 L15.12 80.38 L13.75 80.25 L0.62 95.62 L0.00 97.62 L7.12 104.25 L11.88 107.62 L17.62 110.62 L22.75 112.25 L30.25 113.88 L40.75 114.25 L48.75 113.12 L54.62 111.38 L62.12 107.12 L68.00 101.50 L73.12 93.12 L75.50 85.50 L76.62 76.00 L76.38 1.00 L74.88 0.12Z M97.25 0.50 L96.75 1.50 L97.12 70.00 L98.88 80.50 L100.25 84.88 L102.75 90.50 L106.75 96.88 L112.12 102.50 L120.62 108.25 L127.62 111.12 L138.88 113.62 L154.00 114.12 L162.38 112.75 L172.38 109.38 L179.50 104.88 L182.88 102.00 L188.25 96.12 L192.00 90.00 L195.25 82.62 L197.00 75.75 L197.00 72.50 L195.75 73.25 L191.75 78.88 L185.88 84.50 L179.75 88.12 L171.50 91.12 L163.00 92.62 L151.88 93.00 L141.75 91.25 L133.62 87.50 L129.12 83.38 L126.38 79.50 L124.12 74.38 L123.12 69.12 L122.50 60.88 L122.75 5.25 L122.38 1.00 L121.12 0.12 L98.12 0.12Z M196.75 0.25 L173.75 0.12 L172.62 1.25 L172.50 65.75 L171.38 72.12 L170.00 76.00 L166.00 82.62 L161.50 87.12 L161.62 88.12 L165.62 87.75 L174.00 85.25 L178.38 83.12 L183.62 79.50 L186.38 77.00 L191.50 70.75 L195.75 62.50 L197.75 53.00 L197.88 4.75 L197.75 1.50Z M219.38 0.50 L218.88 1.62 L218.88 110.12 L219.25 111.25 L220.88 112.00 L273.38 111.88 L281.88 111.00 L290.38 109.00 L297.50 106.38 L303.88 103.12 L311.25 97.75 L317.00 91.75 L323.75 80.62 L327.62 69.38 L329.12 60.00 L328.75 47.12 L326.12 36.62 L320.75 25.25 L315.38 17.62 L308.62 11.62 L300.50 6.62 L294.38 4.00 L284.50 1.25 L274.12 0.12 L220.75 0.00Z M244.62 22.38 L245.75 21.88 L267.50 21.88 L277.25 22.62 L283.75 24.50 L288.88 27.00 L293.38 30.62 L297.50 35.25 L300.12 39.75 L302.38 46.88 L303.25 53.12 L302.88 62.12 L301.50 67.88 L298.50 74.88 L295.88 78.62 L291.50 82.75 L285.00 86.62 L280.88 88.12 L275.88 89.12 L245.38 89.38 L244.38 88.75 L243.88 87.25 L244.00 23.50Z M347.62 28.62 L346.62 29.25 L346.25 31.38 L346.38 110.38 L346.88 111.38 L347.88 111.88 L369.88 111.88 L371.12 111.00 L371.38 30.00 L370.00 28.62Z M346.62 0.88 L346.25 14.50 L347.00 18.00 L348.50 19.75 L352.75 21.25 L359.62 21.50 L365.50 20.12 L367.88 18.88 L369.50 17.25 L370.75 14.25 L371.50 7.75 L371.25 1.88 L370.38 0.38 L348.00 0.12Z M544.38 0.50 L543.25 2.12 L502.00 94.62 L495.88 109.12 L495.75 111.62 L511.00 112.12 L521.00 111.75 L522.50 110.00 L525.62 101.00 L529.25 95.38 L532.62 92.00 L536.25 89.38 L540.38 87.38 L547.75 85.38 L555.50 84.38 L564.62 84.75 L571.88 85.88 L578.25 87.75 L582.12 89.88 L585.38 93.25 L593.12 110.25 L594.62 111.88 L618.88 112.00 L620.38 111.62 L620.62 109.88 L571.12 0.88 L569.38 0.00 L549.50 0.00Z M557.25 27.25 L560.00 32.25 L574.50 65.38 L575.00 67.75 L573.25 68.25 L564.75 67.12 L559.62 67.12 L551.25 68.25 L544.88 70.12 L540.00 72.25 L533.75 75.88 L529.00 79.88 L522.88 86.38 L521.50 87.00 L522.00 84.75 L527.62 76.50 L532.50 72.25 L538.50 68.38 L555.50 28.75 L556.50 27.25Z M384.38 0.38 L383.88 1.38 L430.50 110.50 L431.25 111.38 L433.50 112.00 L455.62 111.62 L457.88 108.00 L469.25 81.12 L503.38 4.50 L504.38 0.75 L502.88 0.00 L480.25 0.12 L479.00 0.75 L473.12 13.38 L445.50 77.88 L444.38 78.50 L443.38 77.50 L423.38 28.38 L411.62 0.88 L409.38 0.00 L386.00 0.00Z"/></svg></a>
+      <div class="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input id="q" type="search" placeholder="Ürün ara" aria-label="Ürün ara" autocomplete="off">
+      </div>
+      <button class="pill-btn" id="roleBtn" data-role="musteri"><span class="dot"></span><span id="roleTxt">Müşteri</span></button>
+      <button class="pill-btn" id="panelBtn" hidden>Panel</button>
+      <button class="pill-btn cart-btn hide-sm" data-act="cart">Sepet <span class="badge num" id="cartCount">0</span></button>
+    </div>
+    <nav class="chips" id="chips" aria-label="Kategoriler"></nav>
+  </div>
+</div>
+
+<main class="wrap" id="chapters"></main>
+<div class="foot wrap"><span id="syncNote" class="sync">Kayıt alanına bağlanılıyor…</span></div>
+
+<button class="pill-btn cart-btn fab" id="fab" data-act="cart">Sepet <span class="badge num" id="fabCount">0</span></button>
+
+<div class="scrim" id="scrim" hidden></div>
+<aside class="drawer" id="drawer" aria-label="Sepet">
+  <div class="dr-head"><h2>Sepet</h2><button class="x" data-act="closeCart" aria-label="Sepeti kapat">×</button></div>
+  <div class="dr-body" id="drBody"></div>
+  <div class="dr-foot" id="drFoot"></div>
+</aside>
+
+<dialog id="roleDlg">
+  <div class="dl-head"><h2 id="roleTitle">Giriş</h2><button class="x" data-act="closeDlg" aria-label="Kapat">×</button></div>
+  <div class="dl-body">
+    <div class="roles" id="rolePicks">
+      <button data-pick="giris"><b>Müşteri girişi</b><small>Kayıtlıyım, numaram ve şifremle gireceğim</small></button>
+      <button data-pick="uyelik"><b>Üye ol</b><small>İlk kez geliyorum, bir kere kayıt olacağım</small></button>
+      <button data-pick="ekip"><b>Personel / müdür</b><small>Judiva ekibi girişi</small></button>
+    </div>
+    <div id="roleForm"></div>
+  </div>
+</dialog>
+
+<dialog id="offerDlg" class="wide">
+  <div class="dl-head"><h2 id="offerTitle">Teklif</h2><button class="x" data-act="closeDlg" aria-label="Kapat">×</button></div>
+  <div class="dl-body">
+    <div class="acts" id="offerActs"></div>
+    <p class="msg" id="pdfMsg" hidden></p>
+    <div class="doc-scroll" id="docScroll"><div class="doc-fit" id="docFit"></div></div>
+  </div>
+</dialog>
+
+<dialog id="prodDlg" class="wide">
+  <div class="dl-head"><h2 id="prodCat">Ürün</h2><button class="x" data-act="closeDlg" aria-label="Kapat">×</button></div>
+  <div id="prodBody"></div>
+</dialog>
+
+<dialog id="custDlg" class="wide">
+  <div class="dl-head"><h2 id="custTitle">Müşteri</h2><button class="x" data-act="closeDlg" aria-label="Kapat">×</button></div>
+  <div class="dl-body" id="custBody"></div>
+</dialog>
+
+<section class="panel" id="panel" hidden>
+  <div class="pn-head">
+    <div class="wrap">
+      <h2 id="pnTitle">Panel</h2>
+      <span class="sync" id="pnSync"></span>
+      <button class="btn" data-act="closePanel">Menüye dön</button>
+    </div>
+    <div class="wrap"><div class="tabs" id="tabs"></div></div>
+  </div>
+  <div class="wrap pn-body" id="pnBody"></div>
+</section>
+
+<div id="pdfStage" style="position:fixed;left:-10000px;top:0;" aria-hidden="true"></div>
+<div class="toast" id="toast" hidden></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+const MENU = {"borekler":[{"id":188,"name":"Muska Böreği Ispanaklı","price":368.0,"unit":"kg","d":[["Saklama","Donuk"]],"big":"imgs/u188.jpg"},{"id":189,"name":"Muska Böreği Kıymalı","price":1034.0,"unit":"kg","d":[["Saklama","Donuk"]],"big":"imgs/u189.jpg"},{"id":190,"name":"Muska Böreği Patatesli","price":247.0,"unit":"kg","d":[["Saklama","Donuk"]],"big":"imgs/u190.jpg"},{"id":191,"name":"Muska Böreği Peynirli","price":496.0,"unit":"kg","d":[["Saklama","Donuk"]],"big":"imgs/u191.jpg"},{"id":207,"name":"Sigara Böreği (30 Adet)","price":471.0,"unit":"kg","d":[["Saklama","Donuk"]],"big":"imgs/u207.jpg"},{"id":298,"name":"Su Böreği","price":525.0,"d":[["Kutu içi","50 adet"],["Kutu ağırlığı","3,5 kg"]],"big":"imgs/u298.jpg"}],"icecekler":[{"id":1,"name":"Hamidiye 0,50 LT PET Su","price":186.67,"brand":"Hamidiye","d":[["Koli içi","24 adet"]],"big":"imgs/u1.jpg"},{"id":2,"name":"Hamidiye 5 LT PET Su","price":166.67,"brand":"Hamidiye","d":[["Koli içi","4 adet"]],"big":"imgs/u2.jpg"},{"id":3,"name":"Hamidiye 180 CC Bardak Su","price":100.0,"brand":"Hamidiye","d":[["Koli içi","60 adet"]],"big":"imgs/u3.jpg"},{"id":4,"name":"Kemer Su 19 LT PET Su","price":113.33,"brand":"Kemer Su","d":[["Koli içi","1 adet"]],"big":"imgs/u4.jpg"},{"id":5,"name":"Kumsu 5 LT","price":116.67,"brand":"Kumsu","d":[["Koli içi","4 adet"]],"big":"imgs/u5.jpg"},{"id":6,"name":"Kumsu 300 CC Bardak","price":116.67,"brand":"Kumsu","d":[["Koli içi","40 adet"]],"big":"imgs/u6.jpg"},{"id":7,"name":"Akçapınar Bardak Su 200 CC","price":100.0,"brand":"Akçapınar","d":[["Koli içi","60 adet"]],"big":"imgs/u7.jpg"},{"id":8,"name":"Abant PET Su 0,33 LT 24 Lü","price":173.33,"brand":"Abant","d":[["Koli içi","24 adet"]],"big":"imgs/u8.jpg"},{"id":9,"name":"Abant PET Su 0,50 LT 24 Lü","price":173.33,"brand":"Abant","d":[["Koli içi","24 adet"]],"big":"imgs/u9.jpg"},{"id":10,"name":"Abant PET Su 1,50 LT 12 Li","price":166.67,"brand":"Abant","d":[["Koli içi","12 adet"]],"big":"imgs/u10.jpg"},{"id":11,"name":"Abant PET Su 5 LT 4 Lü","price":153.33,"brand":"Abant","d":[["Koli içi","4 adet"]],"big":"imgs/u11.jpg"},{"id":12,"name":"Sırma Elma","price":333.33,"brand":"Sırma","d":[["Koli içi","24 adet"]],"big":"imgs/u12.jpg"},{"id":13,"name":"Sırma Limon","price":333.33,"brand":"Sırma","d":[["Koli içi","24 adet"]],"big":"imgs/u13.jpg"},{"id":14,"name":"Sırma Çilek","price":333.33,"brand":"Sırma","d":[["Koli içi","24 adet"]],"big":"imgs/u14.jpg"},{"id":15,"name":"Sırma Mandalina","price":333.33,"brand":"Sırma","d":[["Koli içi","24 adet"]],"big":"imgs/u15.jpg"},{"id":16,"name":"Sırma Portakal","price":333.33,"brand":"Sırma","d":[["Koli içi","24 adet"]],"big":"imgs/u16.jpg"},{"id":17,"name":"Sırma Karpuz&Çilek","price":333.33,"brand":"Sırma","d":[["Koli içi","24 adet"]],"big":"imgs/u17.jpg"},{"id":18,"name":"Sırma Karadut","price":333.33,"brand":"Sırma","d":[["Koli içi","24 adet"]],"big":"imgs/u18.jpg"},{"id":19,"name":"Sırma Mango&Ananas","price":333.33,"brand":"Sırma","d":[["Koli içi","24 adet"]],"big":"imgs/u19.jpg"},{"id":20,"name":"Sırma Sade","price":273.33,"brand":"Sırma","d":[["Koli içi","24 adet"]],"big":"imgs/u20.jpg"},{"id":21,"name":"Maden Suyu Beypazarı 200 ML","price":306.67,"brand":"Beypazarı","d":[["Koli içi","24 adet"]],"big":"imgs/u21.jpg"},{"id":22,"name":"Aromalı Beypazarı 200 ML","price":333.33,"brand":"Beypazarı","d":[["Koli içi","24 adet"]]},{"id":23,"name":"Elma Beypazarı 200 ML","price":353.33,"brand":"Beypazarı","d":[["Koli içi","24 adet"]],"big":"imgs/u23.jpg"},{"id":24,"name":"Karadut Beypazarı 200 ML","price":353.33,"brand":"Beypazarı","d":[["Koli içi","24 adet"]],"big":"imgs/u24.jpg"},{"id":25,"name":"Limon Beypazarı 200 ML","price":353.33,"brand":"Beypazarı","d":[["Koli içi","24 adet"]],"big":"imgs/u25.jpg"},{"id":26,"name":"Kızılay Erzican Soda","price":266.67,"brand":"Kızılay","d":[["Koli içi","24 adet"]],"big":"imgs/u26.jpg"},{"id":27,"name":"Freşa C Plus Limon","price":0.0,"brand":"Freşa","d":[["Koli içi","24 adet"]],"big":"imgs/u27.jpg"},{"id":28,"name":"Freşa Elma","price":0.0,"brand":"Freşa","d":[["Koli içi","24 adet"]],"big":"imgs/u28.jpg"},{"id":29,"name":"Freşa Karadut","price":0.0,"brand":"Freşa","d":[["Koli içi","24 adet"]],"big":"imgs/u29.jpg"},{"id":30,"name":"Freşa Nar","price":0.0,"brand":"Freşa","d":[["Koli içi","24 adet"]],"big":"imgs/u30.jpg"},{"id":31,"name":"Freşa Orman Meyve","price":0.0,"brand":"Freşa","d":[["Koli içi","24 adet"]],"big":"imgs/u31.jpg"},{"id":32,"name":"Freşa Mango&Ananas","price":0.0,"brand":"Freşa","d":[["Koli içi","24 adet"]],"big":"imgs/u32.jpg"},{"id":33,"name":"Freşa Mandalina","price":486.67,"brand":"Freşa","d":[["Koli içi","24 adet"]],"big":"imgs/u33.jpg"},{"id":34,"name":"Freşa Premium Çevir Kapak Meyveli","price":600.0,"brand":"Freşa","d":[["Koli içi","24 adet"]],"big":"imgs/u34.jpg"},{"id":35,"name":"Freşa Bubble Gum","price":800.0,"brand":"Freşa","d":[["Koli içi","24 adet"]],"big":"imgs/u35.jpg"},{"id":36,"name":"İnişdibi Premium Çevir Kapak","price":186.67,"brand":"İnişdibi","d":[["Koli içi","24 adet"]],"big":"imgs/u36.jpg"},{"id":37,"name":"İnişdibi Maden Suyu","price":380.0,"brand":"İnişdibi","d":[["Koli içi","24 adet"]],"big":"imgs/u37.jpg"},{"id":38,"name":"Caprisun Meyveli İçecek","price":366.67,"brand":"Caprisun","d":[["Koli içi","20 adet"]],"big":"imgs/u38.jpg"},{"id":39,"name":"Just Power Enerji İçeceği 500 ML","price":600.0,"brand":"Just Power","d":[["Koli içi","24 adet"]],"big":"imgs/u39.jpg"},{"id":40,"name":"Just Power Enerji İçeceği 250 ML","price":440.0,"brand":"Just Power","d":[["Koli içi","24 adet"]],"big":"imgs/u40.jpg"},{"id":41,"name":"Just Power Enerji İçeceği 1 LT","price":380.0,"brand":"Just Power","d":[["Koli içi","12 adet"]],"big":"imgs/u41.jpg"},{"id":42,"name":"Just Power Enerji İçeceği 250 ML PET","price":240.0,"brand":"Just Power","d":[["Koli içi","24 adet"]],"big":"imgs/u42.jpg"},{"id":43,"name":"Nido 250 ML PET Kola Portakal","price":433.33,"brand":"Nido","d":[["Koli içi","24 adet"]],"big":"imgs/u43.jpg"},{"id":44,"name":"Niğde Gazoz 200 ML","price":600.0,"brand":"Niğde","d":[["Koli içi","24 adet"]],"big":"imgs/u44.jpg"},{"id":45,"name":"Black Bruin Enerji 1 LT","price":486.67,"brand":"Black Bruin","d":[["Koli içi","12 adet"]],"big":"imgs/u45.jpg"},{"id":46,"name":"Black Bruin Enerji 250 ML","price":600.0,"brand":"Black Bruin","d":[["Koli içi","24 adet"]],"big":"imgs/u46.jpg"},{"id":47,"name":"Black Bruin Enerji 500 ML","price":800.0,"brand":"Black Bruin","d":[["Koli içi","24 adet"]],"big":"imgs/u47.jpg"},{"id":48,"name":"Sarıyer PET 250 ML Gazoz","price":186.67,"brand":"Sarıyer","d":[["Koli içi","12 adet"]],"big":"imgs/u48.jpg"},{"id":49,"name":"Sarıyer PET 250 ML Portakal","price":200.0,"brand":"Sarıyer","d":[["Koli içi","12 adet"]],"big":"imgs/u49.jpg"},{"id":50,"name":"Sarıyer PET 250 ML Kola","price":200.0,"brand":"Sarıyer","d":[["Koli içi","12 adet"]],"big":"imgs/u50.jpg"},{"id":51,"name":"Sarıyer PET 250 ML Limonata","price":428.0,"brand":"Sarıyer","d":[["Koli içi","24 adet"]],"big":"imgs/u51.jpg"},{"id":52,"name":"Sarıyer PET 2,5 LT Kola","price":433.33,"brand":"Sarıyer","d":[["Koli içi","6 adet"]],"big":"imgs/u52.jpg"},{"id":53,"name":"Sarıyer PET 2,5 LT Portakal","price":433.33,"brand":"Sarıyer","d":[["Koli içi","6 adet"]],"big":"imgs/u53.jpg"},{"id":54,"name":"Sarıyer PET 2,5 LT Kola Şekersiz","price":0.0,"brand":"Sarıyer","d":[["Koli içi","6 adet"]],"big":"imgs/u54.jpg"},{"id":55,"name":"Sarıyer PET 2,5 LT Portakal Şekersiz","price":0.0,"brand":"Sarıyer","d":[["Koli içi","6 adet"]],"big":"imgs/u55.jpg"},{"id":56,"name":"Sarıyer PET 1 LT Şekerli Kola","price":433.33,"brand":"Sarıyer","d":[["Koli içi","12 adet"]],"big":"imgs/u56.jpg"},{"id":57,"name":"Sarıyer PET 1 LT Şekerli Portakal","price":433.33,"brand":"Sarıyer","d":[["Koli içi","12 adet"]],"big":"imgs/u57.jpg"},{"id":58,"name":"Sarıyer PET 1 LT Şekersiz Portakal","price":400.0,"brand":"Sarıyer","d":[["Koli içi","12 adet"]],"big":"imgs/u58.jpg"},{"id":59,"name":"Sarıyer PET 1 LT Şekersiz Kola","price":400.0,"brand":"Sarıyer","d":[["Koli içi","12 adet"]],"big":"imgs/u59.jpg"},{"id":60,"name":"Sarıyer PET 1 LT Şekerli Gazoz","price":433.33,"brand":"Sarıyer","d":[["Koli içi","12 adet"]],"big":"imgs/u60.jpg"},{"id":61,"name":"Sarıyer Teneke 330 ML Kola","price":600.0,"brand":"Sarıyer","d":[["Koli içi","24 adet"]],"big":"imgs/u61.jpg"},{"id":62,"name":"Sarıyer Teneke 330 ML Kola Şekersiz","price":566.67,"brand":"Sarıyer","d":[["Koli içi","24 adet"]],"big":"imgs/u62.jpg"},{"id":63,"name":"Sarıyer Teneke 330 ML Portakal","price":600.0,"brand":"Sarıyer","d":[["Koli içi","24 adet"]],"big":"imgs/u63.jpg"},{"id":64,"name":"Sarıyer Teneke 330 ML Mandalina","price":0.0,"brand":"Sarıyer","d":[["Koli içi","24 adet"]],"big":"imgs/u64.jpg"},{"id":65,"name":"Sarıyer Teneke 330 ML Gazoz","price":566.67,"brand":"Sarıyer","d":[["Koli içi","24 adet"]],"big":"imgs/u65.jpg"},{"id":66,"name":"Sarıyer Osmanlı Şerbeti","price":0.0,"brand":"Sarıyer","d":[["Koli içi","12 adet"]],"big":"imgs/u66.jpg"},{"id":67,"name":"Juss Nektar 1/5 Şeftali","price":343.33,"brand":"Juss","d":[["Koli içi","27 adet"]],"big":"imgs/u67.jpg"},{"id":68,"name":"Juss Kayısı 200 ML","price":343.33,"brand":"Juss","d":[["Koli içi","27 adet"]],"big":"imgs/u68.jpg"},{"id":69,"name":"Juss Karışık 200 ML","price":343.33,"brand":"Juss","d":[["Koli içi","27 adet"]],"big":"imgs/u69.jpg"},{"id":70,"name":"Juss Vişne 200 ML","price":343.33,"brand":"Juss","d":[["Koli içi","27 adet"]],"big":"imgs/u70.jpg"},{"id":71,"name":"Juss Cooler Slim 200 ML Elma&Vişne Meyveli İçecek","price":280.0,"brand":"Juss Cooler","d":[["Koli içi","27 adet"]],"big":"imgs/u71.jpg"},{"id":72,"name":"Juss Cooler Slim 200 ML Şeftali Meyveli İçecek","price":280.0,"brand":"Juss Cooler","d":[["Koli içi","27 adet"]],"big":"imgs/u72.jpg"},{"id":73,"name":"Juss Cooler Slim 200 ML Kayısı Meyveli İçecek","price":280.0,"brand":"Juss Cooler","d":[["Koli içi","27 adet"]],"big":"imgs/u73.jpg"},{"id":74,"name":"Juss Cooler Slim 200 ML Karışık Meyveli İçecek","price":280.0,"brand":"Juss Cooler","d":[["Koli içi","27 adet"]],"big":"imgs/u74.jpg"},{"id":75,"name":"Juss Teneke 250 ML Karışık","price":613.33,"brand":"Juss","d":[["Koli içi","24 adet"]],"big":"imgs/u75.jpg"},{"id":76,"name":"Juss Teneke 250 ML Vişne","price":613.33,"brand":"Juss","d":[["Koli içi","24 adet"]],"big":"imgs/u76.jpg"},{"id":77,"name":"Juss Teneke 250 ML Şeftali","price":613.33,"brand":"Juss","d":[["Koli içi","24 adet"]],"big":"imgs/u77.jpg"},{"id":78,"name":"Juss Teneke 250 ML Kayısı","price":613.33,"brand":"Juss","d":[["Koli içi","24 adet"]],"big":"imgs/u78.jpg"},{"id":79,"name":"Juss Teneke 250 ML Nektarı","price":613.33,"brand":"Juss","d":[["Koli içi","24 adet"]]},{"id":80,"name":"Juss 1/1 Karışık","price":588.0,"brand":"Juss","d":[["Koli içi","12 adet"]],"big":"imgs/u80.jpg"},{"id":81,"name":"Juss 1/1 Mango Meyveli İçecek","price":588.0,"brand":"Juss","d":[["Koli içi","12 adet"]],"big":"imgs/u81.jpg"},{"id":82,"name":"Juss 1/1 Guava Meyveli İçecek","price":588.0,"brand":"Juss","d":[["Koli içi","12 adet"]],"big":"imgs/u82.jpg"},{"id":83,"name":"Juss 1/1 Ekşi Elma Meyveli İçecek","price":588.0,"brand":"Juss","d":[["Koli içi","12 adet"]],"big":"imgs/u83.jpg"},{"id":84,"name":"Juss 1/1 Çilek Meyveli İçecek","price":588.0,"brand":"Juss","d":[["Koli içi","12 adet"]],"big":"imgs/u84.jpg"},{"id":85,"name":"Juss 1/1 Ananas Meyveli İçecek","price":588.0,"brand":"Juss","d":[["Koli içi","12 adet"]],"big":"imgs/u85.jpg"},{"id":86,"name":"Juss 1/1 Portakal Meyveli İçecek","price":588.0,"brand":"Juss","d":[["Koli içi","12 adet"]],"big":"imgs/u86.jpg"},{"id":87,"name":"Juss 1/1 Vişne Meyveli İçecek","price":588.0,"brand":"Juss","d":[["Koli içi","12 adet"]],"big":"imgs/u87.jpg"},{"id":88,"name":"Juss 1/1 Kayısı Meyveli İçecek","price":588.0,"brand":"Juss","d":[["Koli içi","12 adet"]],"big":"imgs/u88.jpg"},{"id":89,"name":"Juss 1/1 Şeftali Meyveli İçecek","price":588.0,"brand":"Juss","d":[["Koli içi","12 adet"]],"big":"imgs/u89.jpg"},{"id":90,"name":"Jusstea 2,5 LT Soğuk Çay","price":392.0,"brand":"Juss","d":[["Koli içi","6 adet"]],"big":"imgs/u90.jpg"},{"id":91,"name":"Jusstea 1 LT Soğuk Çay","price":330.67,"brand":"Juss","d":[["Koli içi","12 adet"]],"big":"imgs/u91.jpg"},{"id":92,"name":"Jusstea Teneke 250ML Karpuz&Çilek Soğuk Çay","price":506.67,"brand":"Juss","d":[["Koli içi","24 adet"]],"big":"imgs/u92.jpg"},{"id":93,"name":"Jusstea Teneke 250ML Şeftali Soğuk Çay","price":506.67,"brand":"Juss","d":[["Koli içi","24 adet"]],"big":"imgs/u93.jpg"},{"id":94,"name":"Jusstea Teneke 250ML Mango&Ananas Soğuk Çay","price":506.67,"brand":"Juss","d":[["Koli içi","24 adet"]],"big":"imgs/u94.jpg"},{"id":95,"name":"Jusstea PET 250 ML Karpuz&Çilek Soğuk Çay","price":506.67,"brand":"Juss","d":[["Koli içi","24 adet"]],"big":"imgs/u95.jpg"},{"id":96,"name":"Jusstea PET 250 ML Şeftali Soğuk Çay","price":333.33,"brand":"Juss","d":[["Koli içi","24 adet"]],"big":"imgs/u96.jpg"},{"id":97,"name":"Jusstea PET 250 ML Mango&Ananas Soğuk Çay","price":333.33,"brand":"Juss","d":[["Koli içi","24 adet"]],"big":"imgs/u97.jpg"},{"id":98,"name":"Juss Tropik 1 LT Meyve Suyu","price":489.33,"brand":"Juss","d":[["Koli içi","12 adet"]]},{"id":99,"name":"Meysu 200 ML Portakal","price":286.67,"brand":"Meysu","d":[["Koli içi","27 adet"]],"big":"imgs/u99.jpg"},{"id":100,"name":"Meysu 200 ML Karışık","price":286.67,"brand":"Meysu","d":[["Koli içi","27 adet"]],"big":"imgs/u100.jpg"},{"id":101,"name":"Meysu 200 ML Vişne","price":286.67,"brand":"Meysu","d":[["Koli içi","27 adet"]],"big":"imgs/u101.jpg"},{"id":102,"name":"Meysu 200 ML Şeftali","price":286.67,"brand":"Meysu","d":[["Koli içi","27 adet"]],"big":"imgs/u102.jpg"},{"id":103,"name":"Meysu 200 ML Kayısı","price":286.67,"brand":"Meysu","d":[["Koli içi","27 adet"]],"big":"imgs/u103.jpg"},{"id":104,"name":"Meysu 1 LT Tetrapak Vişne","price":632.0,"brand":"Meysu","d":[["Koli içi","12 adet"]],"big":"imgs/u104.jpg"},{"id":105,"name":"Meysu 1 LT Tetrapak Ananas","price":632.0,"brand":"Meysu","d":[["Koli içi","12 adet"]],"big":"imgs/u105.jpg"},{"id":106,"name":"Meysu 1 LT Tetrapak Portakal","price":632.0,"brand":"Meysu","d":[["Koli içi","12 adet"]],"big":"imgs/u106.jpg"},{"id":107,"name":"Meysu 1 LT Tetrapak Kayısı","price":632.0,"brand":"Meysu","d":[["Koli içi","12 adet"]],"big":"imgs/u107.jpg"},{"id":108,"name":"Meysu 1 LT Tetrapak Şeftali","price":632.0,"brand":"Meysu","d":[["Koli içi","12 adet"]],"big":"imgs/u108.jpg"},{"id":109,"name":"Meysu 1 LT Tetrapak Karışık","price":632.0,"brand":"Meysu","d":[["Koli içi","12 adet"]],"big":"imgs/u109.jpg"},{"id":110,"name":"Meysu 1 LT Tetrapak Ekşi Elma","price":632.0,"brand":"Meysu","d":[["Koli içi","12 adet"]],"big":"imgs/u110.jpg"},{"id":111,"name":"Meysu 1 LT Tetrapak Karpuz Çilek","price":632.0,"brand":"Meysu","d":[["Koli içi","12 adet"]],"big":"imgs/u111.jpg"},{"id":112,"name":"Meysu Teneke 330 ML Vişne","price":632.0,"brand":"Meysu","d":[["Koli içi","24 adet"]],"big":"imgs/u112.jpg"},{"id":113,"name":"Meysu Teneke 330 ML Şeftali","price":733.33,"brand":"Meysu","d":[["Koli içi","24 adet"]],"big":"imgs/u113.jpg"},{"id":114,"name":"Meysu Teneke 330 ML Kayısı","price":733.33,"brand":"Meysu","d":[["Koli içi","24 adet"]],"big":"imgs/u114.jpg"},{"id":115,"name":"Meysu Teneke 330 ML Karışık","price":733.33,"brand":"Meysu","d":[["Koli içi","24 adet"]],"big":"imgs/u115.jpg"},{"id":116,"name":"Meysu 2,5 LT Kola","price":0.0,"brand":"Meysu","d":[["Koli içi","6 adet"]],"big":"imgs/u116.jpg"},{"id":117,"name":"Meysu 2,5 LT Portakal","price":0.0,"brand":"Meysu","d":[["Koli içi","6 adet"]],"big":"imgs/u117.jpg"},{"id":118,"name":"Meysu 1 LT Kola","price":0.0,"brand":"Meysu","d":[["Koli içi","12 adet"]],"big":"imgs/u118.jpg"},{"id":119,"name":"Meysu 1 LT Portakal","price":0.0,"brand":"Meysu","d":[["Koli içi","12 adet"]],"big":"imgs/u119.jpg"},{"id":120,"name":"Meysu Teneke 330 ML Kola","price":621.33,"brand":"Meysu","d":[["Koli içi","24 adet"]],"big":"imgs/u120.jpg"},{"id":121,"name":"Meysu Teneke 330 ML Portakal","price":621.33,"brand":"Meysu","d":[["Koli içi","24 adet"]],"big":"imgs/u121.jpg"},{"id":122,"name":"Meysu Teneke 330 ML Gülhane Gazoz","price":608.0,"brand":"Meysu","d":[["Koli içi","24 adet"]],"big":"imgs/u122.jpg"},{"id":123,"name":"Tropix 250 ML Kola","price":200.0,"brand":"Tropix","d":[["Koli içi","24 adet"]],"big":"imgs/u123.jpg"},{"id":124,"name":"Tropix 250 ML Portakal","price":200.0,"brand":"Tropix","d":[["Koli içi","24 adet"]],"big":"imgs/u124.jpg"},{"id":125,"name":"Tropix 250 ML Sade Gazoz","price":200.0,"brand":"Tropix","d":[["Koli içi","24 adet"]],"big":"imgs/u125.jpg"},{"id":126,"name":"Tropix 250 ML Limon Aramolı Gazoz","price":200.0,"brand":"Tropix","d":[["Koli içi","24 adet"]]},{"id":127,"name":"Cola Turka 200 ML Şişe Kola","price":473.33,"brand":"Cola Turka","d":[["Koli içi","24 adet"]],"big":"imgs/u127.jpg"},{"id":128,"name":"Cola Turka 2,5 LT","price":0.0,"brand":"Cola Turka","d":[["Koli içi","6 adet"]],"big":"imgs/u128.jpg"},{"id":129,"name":"Cola Turka 1 LT","price":0.0,"brand":"Cola Turka","d":[["Koli içi","12 adet"]],"big":"imgs/u129.jpg"}],"pastalar":[{"id":246,"name":"Frambuazlı Cheesecake","price":1475.12,"unit":"kutu","d":[["Çeşit","Cheesecake"],["Porsiyon","150 g"],["Porsiyon fiyatı","₺122,93"],["Kutu içi","12 adet"],["Kutu ağırlığı","1800 g"]],"big":"imgs/u246.jpg"},{"id":247,"name":"Limonlu Cheesecake","price":1475.12,"unit":"kutu","d":[["Çeşit","Cheesecake"],["Porsiyon","150 g"],["Porsiyon fiyatı","₺122,93"],["Kutu içi","12 adet"],["Kutu ağırlığı","1800 g"]],"big":"imgs/u247.jpg"},{"id":248,"name":"Carrot Cheesecake","price":1606.83,"unit":"kutu","d":[["Çeşit","Cheesecake"],["Porsiyon","160 g"],["Porsiyon fiyatı","₺133,90"],["Kutu içi","12 adet"],["Kutu ağırlığı","1920 g"]],"big":"imgs/u248.jpg"},{"id":249,"name":"San Sebastian Cheesecake","price":1843.9,"unit":"kutu","d":[["Çeşit","Cheesecake"],["Porsiyon","155 g"],["Porsiyon fiyatı","₺153,66"],["Kutu içi","12 adet"],["Kutu ağırlığı","1860 g"]],"big":"imgs/u249.jpg"},{"id":250,"name":"Balkabaklı Cheesecake","price":1843.9,"unit":"kutu","d":[["Çeşit","Cheesecake"],["Porsiyon","190 g"],["Porsiyon fiyatı","₺153,66"],["Kutu içi","12 adet"],["Kutu ağırlığı","2280 g"]],"big":"imgs/u250.jpg"},{"id":251,"name":"Yaban Mersinli Cheesecake","price":1870.24,"unit":"kutu","d":[["Çeşit","Cheesecake"],["Porsiyon","175 g"],["Porsiyon fiyatı","₺155,85"],["Kutu içi","12 adet"],["Kutu ağırlığı","2100 g"]],"big":"imgs/u251.jpg"},{"id":252,"name":"Çikolatalı Cheesecake","price":1475.12,"unit":"kutu","d":[["Çeşit","Cheesecake"],["Porsiyon","150 g"],["Porsiyon fiyatı","₺122,93"],["Kutu içi","12 adet"],["Kutu ağırlığı","1800 g"]],"big":"imgs/u252.jpg"},{"id":253,"name":"Muzlu Çikolatalı Pasta","price":1496.2,"unit":"kutu","d":[["Çeşit","Dilim pastalar"],["Porsiyon","140 g"],["Porsiyon fiyatı","₺124,68"],["Kutu içi","12 adet"],["Kutu ağırlığı","1680 g"]],"big":"imgs/u253.jpg"},{"id":254,"name":"Devil’s Cake","price":1548.0,"unit":"kutu","d":[["Çeşit","Dilim pastalar"],["Porsiyon","160 g"],["Porsiyon fiyatı","₺129,00"],["Kutu içi","12 adet"],["Kutu ağırlığı","1920 g"]],"big":"imgs/u254.jpg"},{"id":255,"name":"Gurme Fıstık","price":1808.78,"unit":"kutu","d":[["Çeşit","Dilim pastalar"],["Porsiyon","150 g"],["Porsiyon fiyatı","₺150,73"],["Kutu içi","12 adet"],["Kutu ağırlığı","1800 g"]],"big":"imgs/u255.jpg"},{"id":256,"name":"Bitter Çikolatalı Profiterollü Pasta","price":1525.17,"unit":"kutu","d":[["Çeşit","Dilim pastalar"],["Porsiyon","160 g"],["Porsiyon fiyatı","₺127,10"],["Kutu içi","12 adet"],["Kutu ağırlığı","1920 g"]],"big":"imgs/u256.jpg"},{"id":257,"name":"Beyaz Çikolatalı Profiterollü Pasta","price":1525.17,"unit":"kutu","d":[["Çeşit","Dilim pastalar"],["Porsiyon","160 g"],["Porsiyon fiyatı","₺127,10"],["Kutu içi","12 adet"],["Kutu ağırlığı","1920 g"]],"big":"imgs/u257.jpg"},{"id":258,"name":"Karaorman Pasta","price":1548.0,"unit":"kutu","d":[["Çeşit","Dilim pastalar"],["Porsiyon","145 g"],["Porsiyon fiyatı","₺129,00"],["Kutu içi","12 adet"],["Kutu ağırlığı","1740 g"]],"big":"imgs/u258.jpg"},{"id":259,"name":"Lotus Karamel Pasta","price":1580.49,"unit":"kutu","d":[["Çeşit","Dilim pastalar"],["Porsiyon","145 g"],["Porsiyon fiyatı","₺131,71"],["Kutu içi","12 adet"],["Kutu ağırlığı","1740 g"]],"big":"imgs/u259.jpg"},{"id":260,"name":"Kremalı Havuçlu Kek","price":1749.07,"unit":"kutu","d":[["Çeşit","Dilim pastalar"],["Porsiyon","200 g"],["Porsiyon fiyatı","₺145,76"],["Kutu içi","12 adet"],["Kutu ağırlığı","2400 g"]],"big":"imgs/u260.jpg"},{"id":261,"name":"Belçika Çikolatalı Pasta","price":2044.1,"unit":"kutu","d":[["Çeşit","Dilim pastalar"],["Porsiyon","190 g"],["Porsiyon fiyatı","₺170,34"],["Kutu içi","12 adet"],["Kutu ağırlığı","2280 g"]],"big":"imgs/u261.jpg"},{"id":262,"name":"Oreolu Çikolatalı Pasta","price":2023.02,"unit":"kutu","d":[["Çeşit","Dilim pastalar"],["Porsiyon","195 g"],["Porsiyon fiyatı","₺168,59"],["Kutu içi","12 adet"],["Kutu ağırlığı","2340 g"]],"big":"imgs/u262.jpg"},{"id":263,"name":"Big Red Velvet","price":1591.02,"unit":"kutu","d":[["Çeşit","Dilim pastalar"],["Porsiyon","175 g"],["Porsiyon fiyatı","₺132,59"],["Kutu içi","12 adet"],["Kutu ağırlığı","2100 g"]],"big":"imgs/u263.jpg"},{"id":264,"name":"Orman Meyveli Pasta","price":1594.54,"unit":"kutu","d":[["Çeşit","Dilim pastalar"],["Porsiyon","145 g"],["Porsiyon fiyatı","₺132,88"],["Kutu içi","12 adet"],["Kutu ağırlığı","1740 g"]],"big":"imgs/u264.jpg"},{"id":265,"name":"Krokantlı Pasta","price":1510.24,"unit":"kutu","d":[["Çeşit","Dilim pastalar"],["Porsiyon","145 g"],["Porsiyon fiyatı","₺125,85"],["Kutu içi","12 adet"],["Kutu ağırlığı","1740 g"]],"big":"imgs/u265.jpg"},{"id":266,"name":"Tiramisu","price":1317.07,"unit":"kutu","d":[["Çeşit","Dilim pastalar"],["Porsiyon","110 g"],["Porsiyon fiyatı","₺109,76"],["Kutu içi","12 adet"],["Kutu ağırlığı","1320 g"]],"big":"imgs/u266.jpg"},{"id":267,"name":"Elmalı Tart","price":1211.71,"unit":"kutu","d":[["Çeşit","Tartlar"],["Porsiyon","130 g"],["Porsiyon fiyatı","₺121,17"],["Kutu içi","10 adet"],["Kutu ağırlığı","1300 g"]],"big":"imgs/u267.jpg"},{"id":268,"name":"Orman Meyveli Tart","price":1264.39,"unit":"kutu","d":[["Çeşit","Tartlar"],["Porsiyon","120 g"],["Porsiyon fiyatı","₺126,44"],["Kutu içi","10 adet"],["Kutu ağırlığı","1200 g"]],"big":"imgs/u268.jpg"},{"id":269,"name":"Çikolatalı Kahveli Kare Pasta","price":1224.88,"unit":"kutu","d":[["Çeşit","Mono pastalar"],["Porsiyon","160 g"],["Porsiyon fiyatı","₺136,10"],["Kutu içi","9 adet"],["Kutu ağırlığı","1440 g"]],"big":"imgs/u269.jpg"},{"id":270,"name":"Trio Brownie","price":1843.9,"unit":"kutu","d":[["Çeşit","Mono pastalar"],["Porsiyon","145 g"],["Porsiyon fiyatı","₺204,88"],["Kutu içi","9 adet"],["Kutu ağırlığı","1305 g"]],"big":"imgs/u270.jpg"},{"id":271,"name":"Red Love Frambuaz","price":1278.88,"unit":"kutu","d":[["Çeşit","Mono pastalar"],["Porsiyon","220 g"],["Porsiyon fiyatı","₺142,10"],["Kutu içi","9 adet"],["Kutu ağırlığı","1980 g"]],"big":"imgs/u271.jpg"},{"id":272,"name":"Cocostar","price":1331.56,"unit":"kutu","d":[["Çeşit","Mono pastalar"],["Porsiyon","155 g"],["Porsiyon fiyatı","₺147,95"],["Kutu içi","9 adet"],["Kutu ağırlığı","1395 g"]],"big":"imgs/u272.jpg"},{"id":273,"name":"Cocomore","price":1172.2,"unit":"kutu","d":[["Çeşit","Mono pastalar"],["Porsiyon","180 g"],["Porsiyon fiyatı","₺130,24"],["Kutu içi","9 adet"],["Kutu ağırlığı","1620 g"]],"big":"imgs/u273.jpg"},{"id":274,"name":"Carnival Cake (Gökkuşağı Pasta)","price":1215.66,"unit":"kutu","d":[["Çeşit","Mono pastalar"],["Porsiyon","175 g"],["Porsiyon fiyatı","₺135,07"],["Kutu içi","12 adet"],["Kutu ağırlığı","2100 g"]],"big":"imgs/u274.jpg"},{"id":275,"name":"Çikolatalı Muzlu Kare Pasta","price":1231.46,"unit":"kutu","d":[["Çeşit","Mono pastalar"],["Porsiyon","160 g"],["Porsiyon fiyatı","₺136,83"],["Kutu içi","10 adet"],["Kutu ağırlığı","1600 g"]],"big":"imgs/u275.jpg"},{"id":276,"name":"Bitter Çikolatalı Kare Profiterollü Pasta","price":1297.32,"unit":"kutu","d":[["Çeşit","Mono pastalar"],["Porsiyon","190 g"],["Porsiyon fiyatı","₺144,15"],["Kutu içi","9 adet"],["Kutu ağırlığı","1710 g"]],"big":"imgs/u276.jpg"},{"id":277,"name":"Beyaz Çikolatalı Kare Profiterollü Pasta","price":1297.32,"unit":"kutu","d":[["Çeşit","Mono pastalar"],["Porsiyon","195 g"],["Porsiyon fiyatı","₺144,15"],["Kutu içi","9 adet"],["Kutu ağırlığı","1755 g"]],"big":"imgs/u277.jpg"},{"id":278,"name":"Tiramisu Kare","price":1136.63,"unit":"kutu","d":[["Çeşit","Mono pastalar"],["Porsiyon","140 g"],["Porsiyon fiyatı","₺126,29"],["Kutu içi","12 adet"],["Kutu ağırlığı","1680 g"]],"big":"imgs/u278.jpg"},{"id":279,"name":"Amerikan Brownie Kek","price":1181.41,"unit":"kutu","d":[["Çeşit","Mono pastalar"],["Porsiyon","135 g"],["Porsiyon fiyatı","₺131,27"],["Kutu içi","12 adet"],["Kutu ağırlığı","1620 g"]],"big":"imgs/u279.jpg"},{"id":280,"name":"Frambuazlı Çikolatalı Pasta","price":1577.85,"unit":"kutu","d":[["Çeşit","Mono pastalar"],["Porsiyon","185 g"],["Porsiyon fiyatı","₺175,32"],["Kutu içi","9 adet"],["Kutu ağırlığı","1665 g"]],"big":"imgs/u280.jpg"},{"id":281,"name":"Gurme Fıstık Mono","price":1392.8,"unit":"kutu","d":[["Çeşit","Mono pastalar"],["Porsiyon","150 g"],["Porsiyon fiyatı","₺154,76"],["Kutu içi","16 adet"],["Kutu ağırlığı","2400 g"]],"big":"imgs/u281.jpg"},{"id":282,"name":"Piramit Mozaik Pasta","price":948.29,"unit":"kutu","d":[["Çeşit","Mono pastalar"],["Porsiyon","120 g"],["Porsiyon fiyatı","₺105,37"],["Kutu içi","18 adet"],["Kutu ağırlığı","2160 g"]],"big":"imgs/u282.jpg"},{"id":283,"name":"Büyük Sufle","price":1173.51,"unit":"kutu","d":[["Çeşit","Mono pastalar"],["Porsiyon","145 g"],["Porsiyon fiyatı","₺130,39"],["Kutu içi","12 adet"],["Kutu ağırlığı","1740 g"]],"big":"imgs/u283.jpg"},{"id":284,"name":"Küçük Sufle","price":782.34,"unit":"kutu","d":[["Çeşit","Mono pastalar"],["Porsiyon","110 g"],["Porsiyon fiyatı","₺86,93"],["Kutu içi","18 adet"],["Kutu ağırlığı","1980 g"]],"big":"imgs/u284.jpg"},{"id":285,"name":"Yerfıstıklı Çikolatalı Pasta","price":1277.56,"unit":"kutu","d":[["Çeşit","Mono pastalar"],["Porsiyon","185 g"],["Porsiyon fiyatı","₺141,95"],["Kutu içi","9 adet"],["Kutu ağırlığı","1665 g"]],"big":"imgs/u285.jpg"},{"id":286,"name":"Molten Cake","price":1236.73,"unit":"kutu","d":[["Çeşit","Mono pastalar"],["Porsiyon","175 g"],["Porsiyon fiyatı","₺137,41"],["Kutu içi","8 adet"],["Kutu ağırlığı","1400 g"]],"big":"imgs/u286.jpg"},{"id":287,"name":"Havuçlu Kek","price":960.15,"unit":"kutu","d":[["Çeşit","Mono pastalar"],["Porsiyon","140 g"],["Porsiyon fiyatı","₺106,68"],["Kutu içi","12 adet"],["Kutu ağırlığı","1680 g"]],"big":"imgs/u287.jpg"},{"id":288,"name":"Dk Fıstıklı Honey Cake (Antepfıstıklı Ballı Pasta)","price":1041.95,"unit":"kutu","d":[["Çeşit","Mono pastalar"],["Porsiyon","120 g"],["Porsiyon fiyatı","₺130,24"],["Kutu içi","8 adet"],["Kutu ağırlığı","960 g"]],"big":"imgs/u288.jpg"},{"id":289,"name":"Dk Honey Cake (Ballı Cevizli Pasta)","price":1112.2,"unit":"kutu","d":[["Çeşit","Mono pastalar"],["Porsiyon","120 g"],["Porsiyon fiyatı","₺139,02"],["Kutu içi","8 adet"],["Kutu ağırlığı","960 g"]],"big":"imgs/u289.jpg"},{"id":290,"name":"Dk Çikolatalı Honey Cake (Çikolatalı Ballı Pasta)","price":1334.63,"unit":"kutu","d":[["Çeşit","Mono pastalar"],["Porsiyon","120 g"],["Porsiyon fiyatı","₺166,83"],["Kutu içi","8 adet"],["Kutu ağırlığı","960 g"]],"big":"imgs/u290.jpg"},{"id":291,"name":"Tiramisu Kare","price":21.95,"unit":"kutu","d":[["Çeşit","Dilim pastalar"],["Porsiyon fiyatı","₺351,20"],["Kutu içi","16 adet"],["Kutu ağırlığı","70 g"]],"big":"imgs/u291.jpg"},{"id":292,"name":"Çikolatalı Pasta","price":22.56,"unit":"kutu","d":[["Çeşit","Dilim pastalar"],["Porsiyon fiyatı","₺360,96"],["Kutu içi","16 adet"],["Kutu ağırlığı","70 g"]],"big":"imgs/u292.jpg"},{"id":293,"name":"Red Velvet","price":21.95,"unit":"kutu","d":[["Çeşit","Dilim pastalar"],["Porsiyon fiyatı","₺351,20"],["Kutu içi","16 adet"],["Kutu ağırlığı","70 g"]],"big":"imgs/u293.jpg"},{"id":294,"name":"Kalpli Pasta","price":34.15,"unit":"kutu","d":[["Çeşit","Dilim pastalar"],["Porsiyon fiyatı","₺546,40"],["Kutu içi","16 adet"],["Kutu ağırlığı","75 g"]],"big":"imgs/u294.jpg"},{"id":295,"name":"Latte Pasta","price":35.37,"unit":"kutu","d":[["Çeşit","Dilim pastalar"],["Porsiyon fiyatı","₺565,92"],["Kutu içi","16 adet"],["Kutu ağırlığı","75 g"]],"big":"imgs/u295.jpg"},{"id":296,"name":"Hindistan Cevizli Pasta","price":35.37,"unit":"kutu","d":[["Çeşit","Dilim pastalar"],["Porsiyon fiyatı","₺565,92"],["Kutu içi","16 adet"],["Kutu ağırlığı","75 g"]],"big":"imgs/u296.jpg"},{"id":297,"name":"Fıstıklı Pasta","price":40.24,"unit":"kutu","d":[["Çeşit","Dilim pastalar"],["Porsiyon fiyatı","₺643,84"],["Kutu içi","16 adet"],["Kutu ağırlığı","75 g"]],"big":"imgs/u297.jpg"}],"mezeler":[{"id":130,"name":"Acılı Ezme","price":400.0,"unit":"kg","d":[["Raf ömrü","4 gün"]],"big":"imgs/u130.jpg"},{"id":131,"name":"Amerikan Salatası","price":304.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u131.jpg"},{"id":132,"name":"Atom","price":460.0,"unit":"kg","d":[["Raf ömrü","4 gün"]],"big":"imgs/u132.jpg"},{"id":133,"name":"Babagannuş","price":448.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u133.jpg"},{"id":134,"name":"Babagannuş Kabaklı","price":507.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u134.jpg"},{"id":135,"name":"Bademli Kabak","price":592.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u135.jpg"},{"id":136,"name":"Ballı Karamelize Fava","price":378.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u136.jpg"},{"id":137,"name":"Barbunya Pilaki","price":589.0,"unit":"kg","d":[["Raf ömrü","4 gün"]],"big":"imgs/u137.jpg"},{"id":138,"name":"Begonvil","price":376.0,"unit":"kg","d":[["Raf ömrü","3 gün"]]},{"id":139,"name":"Celoslaw Salatası","price":415.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u139.jpg"},{"id":140,"name":"Chedar Peynirli Patlıcan Salatası","price":630.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u140.jpg"},{"id":141,"name":"Çerkes Tavuğu","price":616.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u141.jpg"},{"id":142,"name":"Çiğ Köfte","price":352.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u142.jpg"},{"id":143,"name":"Ege Haydari","price":371.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u143.jpg"},{"id":144,"name":"Etli Biber Dolma","price":560.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u144.jpg"},{"id":145,"name":"Etli Kabak Dolma","price":560.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u145.jpg"},{"id":146,"name":"Etli Kapya Biber Dolma","price":618.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u146.jpg"},{"id":147,"name":"Etli Kuru Biber Dolma","price":1038.4,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u147.jpg"},{"id":148,"name":"Etli Kuru Patlıcan Dolma","price":968.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u148.jpg"},{"id":149,"name":"Etli Lahana Sarma","price":565.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u149.jpg"},{"id":150,"name":"Etli Pazı Dolma","price":894.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u150.jpg"},{"id":151,"name":"Etli Soğan Dolması","price":488.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u151.jpg"},{"id":152,"name":"Etli Yaprak Sarma","price":960.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u152.jpg"},{"id":153,"name":"Fava","price":328.0,"unit":"kg","d":[["Raf ömrü","4 gün"]],"big":"imgs/u153.jpg"},{"id":154,"name":"Fesleğenli Girit Ezme","price":840.0,"unit":"kg","d":[["Raf ömrü","4 gün"]],"big":"imgs/u154.jpg"},{"id":155,"name":"Firik Bulguru Salatası","price":463.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u155.jpg"},{"id":156,"name":"Gözleme Kaşarlı (Kg 6 Ad)","price":1087.0,"unit":"kg","d":[["Saklama","Donuk"]],"big":"imgs/u156.jpg"},{"id":157,"name":"Gözleme Kıymalı (Kg 5 Adet)","price":1213.0,"unit":"kg","d":[["Saklama","Donuk"]],"big":"imgs/u157.jpg"},{"id":158,"name":"Gözleme Patatesli (Kg 4 Adet)","price":330.0,"unit":"kg","d":[["Saklama","Donuk"]],"big":"imgs/u158.jpg"},{"id":159,"name":"Gözleme Peynirli (Kg 7 Adet)","price":1082.0,"unit":"kg","d":[["Saklama","Donuk"]],"big":"imgs/u159.jpg"},{"id":160,"name":"Havuç Tarator","price":352.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u160.jpg"},{"id":161,"name":"Haydari","price":386.0,"unit":"kg","d":[["Raf ömrü","4 gün"]],"big":"imgs/u161.jpg"},{"id":162,"name":"Humus","price":304.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u162.jpg"},{"id":163,"name":"Ispanak Tarator","price":416.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u163.jpg"},{"id":164,"name":"İçli Köfte 40 GR (Kg 25 Adet)","price":1307.0,"unit":"kg","d":[["Saklama","Donuk"]],"big":"imgs/u164.jpg"},{"id":165,"name":"İçli Köfte 70 GR (Kg 13-14 Adet)","price":1016.0,"unit":"kg","d":[["Saklama","Donuk"]],"big":"imgs/u165.jpg"},{"id":166,"name":"İmam Bayıldı Mini (12-14 Ad)","price":448.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u166.jpg"},{"id":167,"name":"Kaya Koruğu (Net 1 Kg)","price":882.0,"unit":"kg","d":[["Raf ömrü","5 gün"]],"big":"imgs/u167.jpg"},{"id":168,"name":"Kısır","price":304.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u168.jpg"},{"id":169,"name":"Kısır Pancarlı","price":352.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u169.jpg"},{"id":170,"name":"Kinoa Salatası","price":515.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u170.jpg"},{"id":171,"name":"Köpoğlu","price":416.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u171.jpg"},{"id":172,"name":"Köz Kapya Biberli Peynir Ezme","price":733.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u172.jpg"},{"id":173,"name":"Közlenmiş Patlıcan","price":531.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u173.jpg"},{"id":174,"name":"Kuru Börülce","price":645.0,"unit":"kg","d":[["Raf ömrü","5 gün"]],"big":"imgs/u174.jpg"},{"id":175,"name":"Kuru Cacık","price":443.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u175.jpg"},{"id":176,"name":"Kuru Dolma Biber","price":546.0,"unit":"kg","d":[["Raf ömrü","4 gün"]],"big":"imgs/u176.jpg"},{"id":177,"name":"Kuru Dolma Kabak","price":455.0,"unit":"kg","d":[["Raf ömrü","4 gün"]],"big":"imgs/u177.jpg"},{"id":178,"name":"Kuru Dolma Patlıcan","price":629.0,"unit":"kg","d":[["Raf ömrü","4 gün"]],"big":"imgs/u178.jpg"},{"id":179,"name":"Levrek Marin Hardallı","price":2760.0,"unit":"kg","d":[["Raf ömrü","4 gün"]],"big":"imgs/u179.jpg"},{"id":180,"name":"Mahsani","price":560.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u180.jpg"},{"id":181,"name":"Makarna Salatası","price":296.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u181.jpg"},{"id":182,"name":"Mercimek Köftesi","price":258.0,"unit":"kg","d":[["Raf ömrü","2 gün"]],"big":"imgs/u182.jpg"},{"id":183,"name":"Mini Peynir Topu Çörek Otlu","price":523.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u183.jpg"},{"id":184,"name":"Mini Peynir Topu Dere Otlu","price":695.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u184.jpg"},{"id":185,"name":"Mini Peynir Topu Maydanozlu","price":504.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u185.jpg"},{"id":186,"name":"Mini Peynir Topu Toz Biberli","price":535.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u186.jpg"},{"id":187,"name":"Muhammara","price":488.0,"unit":"kg","d":[["Raf ömrü","5 gün"]],"big":"imgs/u187.jpg"},{"id":192,"name":"Mücver (1 Adet 40 Gr)","price":498.0,"unit":"kg","d":[["Raf ömrü","2 gün"]],"big":"imgs/u192.jpg"},{"id":193,"name":"Mücver Mini Top","price":498.0,"unit":"kg","d":[["Raf ömrü","2 gün"]],"big":"imgs/u193.jpg"},{"id":194,"name":"Mütebbel","price":432.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u194.jpg"},{"id":195,"name":"Paçanga 20 GR (1 kg 50 Adet)","price":1307.0,"unit":"kg","d":[["Saklama","Donuk"]],"big":"imgs/u195.jpg"},{"id":196,"name":"Paçanga 40 GR (1Kg 25 Adet)","price":1296.0,"unit":"kg","d":[["Saklama","Donuk"]],"big":"imgs/u196.jpg"},{"id":197,"name":"Paçanga 70 GR (1Kg 14 Adet)","price":1200.0,"unit":"kg","d":[["Saklama","Donuk"]],"big":"imgs/u197.jpg"},{"id":198,"name":"Pancarlı Fava","price":314.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u198.jpg"},{"id":199,"name":"Pancarlı Humus","price":375.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u199.jpg"},{"id":200,"name":"Paşa Ezmesi","price":562.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u200.jpg"},{"id":201,"name":"Patates Salatası","price":328.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u201.jpg"},{"id":202,"name":"Patates Salatası Hardallı","price":360.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u202.jpg"},{"id":203,"name":"Patlıcan Salatası","price":634.0,"unit":"kg","d":[["Raf ömrü","4 gün"]],"big":"imgs/u203.jpg"},{"id":204,"name":"Pazı Kavurma","price":630.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u204.jpg"},{"id":205,"name":"Pempe Sultan","price":352.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u205.jpg"},{"id":206,"name":"Piyaz","price":488.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u206.jpg"},{"id":208,"name":"Somon Sögüş","price":4048.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u208.jpg"},{"id":209,"name":"Sumaklı Dil Balığı","price":1104.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u209.jpg"},{"id":210,"name":"Sumaklı Levrek","price":2008.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u210.jpg"},{"id":211,"name":"Susamlı Karides","price":933.0,"unit":"kg","d":[["Raf ömrü","2 gün"]],"big":"imgs/u211.jpg"},{"id":212,"name":"Şakşuka","price":456.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u212.jpg"},{"id":213,"name":"Tabule (Narlı)","price":623.0,"unit":"kg","d":[["Raf ömrü","2 gün"]],"big":"imgs/u213.jpg"},{"id":214,"name":"Uskumru Marin","price":2750.0,"unit":"kg","d":[["Raf ömrü","4 gün"]],"big":"imgs/u214.jpg"},{"id":215,"name":"Vişneli Ananas","price":990.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u215.jpg"},{"id":216,"name":"Vişneli Brokoli","price":488.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u216.jpg"},{"id":217,"name":"Vişneli Yaprak Sarma","price":736.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u217.jpg"},{"id":218,"name":"Yeni Nesil Haydari","price":375.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u218.jpg"},{"id":219,"name":"Yoğurtlu Semiz","price":672.0,"unit":"kg","d":[["Raf ömrü","2 gün"]],"big":"imgs/u219.jpg"},{"id":220,"name":"Zeytinyağlı Biber Dolma","price":330.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u220.jpg"},{"id":221,"name":"Zeytinyağlı Bulgurlu Biber Dolma","price":418.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u221.jpg"},{"id":222,"name":"Zeytinyağlı Biber Dolma","price":618.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u222.jpg"},{"id":223,"name":"Zeytinyağlı Bulgurlu Kuru Kabak","price":557.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u223.jpg"},{"id":224,"name":"Zeytinyağlı Bulgurlu Kuru Patlıcan","price":611.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u224.jpg"},{"id":225,"name":"Zeytinyağlı Bulgurlu Yaprak Sarma","price":480.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u225.jpg"},{"id":226,"name":"Zeytinyağlı Domates Dolması","price":365.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u226.jpg"},{"id":227,"name":"Zeytinyağlı Enginar (5 Cm)","price":275.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u227.jpg"},{"id":228,"name":"Zeytinyağlı Enginar (8-10 Cm)","price":304.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u228.jpg"},{"id":229,"name":"Zeytinyağlı Ispanak","price":400.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u229.jpg"},{"id":230,"name":"Zeytinyağlı Kabak","price":400.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u230.jpg"},{"id":231,"name":"Zeytinyağlı Kabak Dolması","price":466.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u231.jpg"},{"id":232,"name":"Zeytinyağlı Kapya Biber Dolma","price":618.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u232.jpg"},{"id":233,"name":"Zeytinyağlı Kereviz","price":527.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u233.jpg"},{"id":234,"name":"Zeytinyağlı Lahana Sarma","price":344.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u234.jpg"},{"id":235,"name":"Zeytinyağlı Patlıcan Dolma","price":466.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u235.jpg"},{"id":236,"name":"Zeytinyağlı Pazı Dolma","price":446.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u236.jpg"},{"id":237,"name":"Zeytinyağlı Pırasa","price":387.0,"unit":"kg","d":[["Raf ömrü","2 gün"]],"big":"imgs/u237.jpg"},{"id":238,"name":"Zeytinyağlı Taze Fasulye","price":413.0,"unit":"kg","d":[["Raf ömrü","5 gün"]],"big":"imgs/u238.jpg"},{"id":239,"name":"Zeytinyağlı Yaprak Sarma","price":456.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u239.jpg"},{"id":240,"name":"Acuka","price":558.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u240.jpg"},{"id":241,"name":"Mini İmam Bayıldı Adet","price":58.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u241.jpg"},{"id":242,"name":"Közlenmiş Patlıcan","price":552.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u242.jpg"},{"id":243,"name":"Zeytinyağı Brokoli","price":444.0,"unit":"kg","d":[["Raf ömrü","2 gün"]],"big":"imgs/u243.jpg"},{"id":244,"name":"Zeytinyağlı Havuç","price":354.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u244.jpg"},{"id":245,"name":"Z.yaprak Sarma İnce Sarım","price":588.0,"unit":"kg","d":[["Raf ömrü","3 gün"]],"big":"imgs/u245.jpg"}]};
+const CATS = [
+  { key: 'mezeler', label: 'Mezeler', word: 'Mezeler.', cover: 164 },
+  { key: 'pastalar', label: 'Pastalar', word: 'Pastalar.', cover: 246 },
+  { key: 'borekler', label: 'Börekler', word: 'Börekler.', cover: 188 },
+  { key: 'icecekler', label: 'İçecekler', word: 'İçecekler.', cover: null },
+];
+const HERO_IDS = [246, 130, 188, 253, 135, 251];
+const STATUSES = ['Yeni', 'Gönderildi', 'Kabul edildi', 'Reddedildi'];
+const DEFAULT_SETTINGS = { validDays: 15, users: [
+  { id: 'u_azra', name: 'Azra', username: 'azra', role: 'mudur', hash: 'f52c29f086c52b602047783e3bea8c5a579dfa46994b520939a1d142d6ebfadb' },
+  { id: 'u_mudur2', name: 'Müdür 2', username: 'mudur2', role: 'mudur', hash: '1a37adca193f4f3be34d1f442b3b1a9a25b759dde4e8577d0a41bb1da3208576' },
+  { id: 'p_ebrar', name: 'Ebrar', username: 'ebrar', role: 'personel', hash: '1919ae178e99c94c5fe930669cb4b99204b3520033b48fde566e6fba9b0bb2cb' },
+  { id: 'p_miray', name: 'Miray', username: 'miray', role: 'personel', hash: '599f1ad70177e38085f0c86dee7ad89b553a9aa1571546c651f98e73e8b0890b' },
+] };
+const ROLE_TR = { mudur: 'Müdür', personel: 'Personel' };
+const LOGO = "<svg class=\"logo\" viewBox=\"0 0 620.62 114.25\" role=\"img\" aria-label=\"Judiva\"><path fill=\"currentColor\" fill-rule=\"evenodd\" d=\"M14.50 0.25 L13.50 1.75 L13.50 20.25 L14.25 21.38 L50.25 21.62 L51.00 22.38 L51.38 70.50 L50.88 77.62 L49.25 83.88 L47.38 87.38 L43.75 90.38 L38.25 92.00 L31.75 91.50 L27.62 90.12 L20.25 85.62 L15.12 80.38 L13.75 80.25 L0.62 95.62 L0.00 97.62 L7.12 104.25 L11.88 107.62 L17.62 110.62 L22.75 112.25 L30.25 113.88 L40.75 114.25 L48.75 113.12 L54.62 111.38 L62.12 107.12 L68.00 101.50 L73.12 93.12 L75.50 85.50 L76.62 76.00 L76.38 1.00 L74.88 0.12Z M97.25 0.50 L96.75 1.50 L97.12 70.00 L98.88 80.50 L100.25 84.88 L102.75 90.50 L106.75 96.88 L112.12 102.50 L120.62 108.25 L127.62 111.12 L138.88 113.62 L154.00 114.12 L162.38 112.75 L172.38 109.38 L179.50 104.88 L182.88 102.00 L188.25 96.12 L192.00 90.00 L195.25 82.62 L197.00 75.75 L197.00 72.50 L195.75 73.25 L191.75 78.88 L185.88 84.50 L179.75 88.12 L171.50 91.12 L163.00 92.62 L151.88 93.00 L141.75 91.25 L133.62 87.50 L129.12 83.38 L126.38 79.50 L124.12 74.38 L123.12 69.12 L122.50 60.88 L122.75 5.25 L122.38 1.00 L121.12 0.12 L98.12 0.12Z M196.75 0.25 L173.75 0.12 L172.62 1.25 L172.50 65.75 L171.38 72.12 L170.00 76.00 L166.00 82.62 L161.50 87.12 L161.62 88.12 L165.62 87.75 L174.00 85.25 L178.38 83.12 L183.62 79.50 L186.38 77.00 L191.50 70.75 L195.75 62.50 L197.75 53.00 L197.88 4.75 L197.75 1.50Z M219.38 0.50 L218.88 1.62 L218.88 110.12 L219.25 111.25 L220.88 112.00 L273.38 111.88 L281.88 111.00 L290.38 109.00 L297.50 106.38 L303.88 103.12 L311.25 97.75 L317.00 91.75 L323.75 80.62 L327.62 69.38 L329.12 60.00 L328.75 47.12 L326.12 36.62 L320.75 25.25 L315.38 17.62 L308.62 11.62 L300.50 6.62 L294.38 4.00 L284.50 1.25 L274.12 0.12 L220.75 0.00Z M244.62 22.38 L245.75 21.88 L267.50 21.88 L277.25 22.62 L283.75 24.50 L288.88 27.00 L293.38 30.62 L297.50 35.25 L300.12 39.75 L302.38 46.88 L303.25 53.12 L302.88 62.12 L301.50 67.88 L298.50 74.88 L295.88 78.62 L291.50 82.75 L285.00 86.62 L280.88 88.12 L275.88 89.12 L245.38 89.38 L244.38 88.75 L243.88 87.25 L244.00 23.50Z M347.62 28.62 L346.62 29.25 L346.25 31.38 L346.38 110.38 L346.88 111.38 L347.88 111.88 L369.88 111.88 L371.12 111.00 L371.38 30.00 L370.00 28.62Z M346.62 0.88 L346.25 14.50 L347.00 18.00 L348.50 19.75 L352.75 21.25 L359.62 21.50 L365.50 20.12 L367.88 18.88 L369.50 17.25 L370.75 14.25 L371.50 7.75 L371.25 1.88 L370.38 0.38 L348.00 0.12Z M544.38 0.50 L543.25 2.12 L502.00 94.62 L495.88 109.12 L495.75 111.62 L511.00 112.12 L521.00 111.75 L522.50 110.00 L525.62 101.00 L529.25 95.38 L532.62 92.00 L536.25 89.38 L540.38 87.38 L547.75 85.38 L555.50 84.38 L564.62 84.75 L571.88 85.88 L578.25 87.75 L582.12 89.88 L585.38 93.25 L593.12 110.25 L594.62 111.88 L618.88 112.00 L620.38 111.62 L620.62 109.88 L571.12 0.88 L569.38 0.00 L549.50 0.00Z M557.25 27.25 L560.00 32.25 L574.50 65.38 L575.00 67.75 L573.25 68.25 L564.75 67.12 L559.62 67.12 L551.25 68.25 L544.88 70.12 L540.00 72.25 L533.75 75.88 L529.00 79.88 L522.88 86.38 L521.50 87.00 L522.00 84.75 L527.62 76.50 L532.50 72.25 L538.50 68.38 L555.50 28.75 L556.50 27.25Z M384.38 0.38 L383.88 1.38 L430.50 110.50 L431.25 111.38 L433.50 112.00 L455.62 111.62 L457.88 108.00 L469.25 81.12 L503.38 4.50 L504.38 0.75 L502.88 0.00 L480.25 0.12 L479.00 0.75 L473.12 13.38 L445.50 77.88 L444.38 78.50 L443.38 77.50 L423.38 28.38 L411.62 0.88 L409.38 0.00 L386.00 0.00Z\"/></svg>";
+
+const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => [...el.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const money = new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', minimumFractionDigits: 2 });
+const fmt = n => money.format(Math.round((+n || 0) * 100) / 100);
+const fmtQty = n => (+n).toLocaleString('tr-TR', { maximumFractionDigits: 2 });
+const fmtDate = iso => iso ? new Date(iso).toLocaleDateString('tr-TR', { day: '2-digit', month: 'long', year: 'numeric' }) : '';
+const fmtShort = iso => iso ? new Date(iso).toLocaleDateString('tr-TR') : '';
+const norm = s => String(s || '').toLocaleLowerCase('tr-TR');
+const uid = (p = '') => p + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+const ls = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+};
+function toast(t) { const el = $('#toast'); el.textContent = t; el.hidden = false; clearTimeout(toast.t); toast.t = setTimeout(() => el.hidden = true, 2600); }
+
+/* ---------- Ürünler ---------- */
+const BASE = [];
+for (const c of CATS) for (const p of (MENU[c.key] || [])) BASE.push({ ...p, id: String(p.id), cat: c.key, img: p.big || null });
+function unitOf(p) {
+  if (p.unit) return p.unit;
+  if ((p.d || []).some(x => /koli/i.test(x[0]))) return 'koli';
+  return 'adet';
+}
+function detOf(p) { return (p.d || []).filter(x => !/porsiyon fiyat/i.test(x[0])).map(x => `${x[0]}: ${x[1]}`).join(' · '); }
+function allProducts() { return BASE.concat(store.cache.products.map(p => ({ ...p, custom: true }))); }
+function byId(id) { return allProducts().find(p => p.id === String(id)); }
+
+/* ---------- Kayıt alanı (paylaşımlı db, yoksa bu cihaz) ---------- */
+const COLS = ['offers', 'customers', 'coupons', 'products'];
+const store = {
+  db: null, shared: false, ready: false,
+  cache: { offers: [], customers: [], coupons: [], products: [] },
+  settings: { ...DEFAULT_SETTINGS },
+};
+function onStore() { renderAll(); }
+function loadLocal() {
+  for (const c of COLS) store.cache[c] = ls.get('judiva.' + c, []);
+  store.settings = { ...DEFAULT_SETTINGS, ...ls.get('judiva.settings', {}) };
+}
+function saveLocal(c) { ls.set('judiva.' + c, store.cache[c]); }
+async function initStore() {
+  let db = null;
+  try { db = window.claude?.use ? await window.claude.use('db') : null; } catch { db = null; }
+  if (db) {
+    store.db = db; store.shared = true;
+    for (const c of COLS) {
+      db.collection(c).onSnapshot(snap => {
+        store.cache[c] = snap.docs.map(d => ({ ...d.data(), id: d.id }));
+        store.ready = true; onStore();
+      }, () => { setSync('Kayıtlar okunamadı. Sayfayı yenileyin.'); });
+    }
+    db.doc('settings/main').onSnapshot(s => {
+      store.settings = { ...DEFAULT_SETTINGS, ...(s.exists ? s.data() : {}) };
+      onStore();
+    });
+    setSync('Kayıtlar paylaşımlı alanda tutuluyor: personel ve müdür aynı teklifleri görür.');
+  } else {
+    loadLocal(); store.ready = true;
+    setSync('Önizleme modu: kayıtlar yalnızca bu cihazdaki tarayıcıda tutuluyor.');
+    onStore();
+  }
+}
+function setSync(t) { $('#syncNote').textContent = t; $('#pnSync').textContent = store.shared ? 'Paylaşımlı kayıt' : 'Bu cihazda kayıt'; }
+async function put(c, id, data) {
+  if (store.db) return store.db.collection(c).doc(id).set(data);
+  const arr = store.cache[c]; const i = arr.findIndex(x => x.id === id);
+  if (i >= 0) arr[i] = { ...data, id }; else arr.push({ ...data, id });
+  saveLocal(c); onStore();
+}
+async function patch(c, id, data) {
+  if (store.db) return store.db.collection(c).doc(id).update(data);
+  const x = store.cache[c].find(x => x.id === id); if (x) Object.assign(x, data);
+  saveLocal(c); onStore();
+}
+async function del(c, id) {
+  if (store.db) return store.db.collection(c).doc(id).delete();
+  store.cache[c] = store.cache[c].filter(x => x.id !== id); saveLocal(c); onStore();
+}
+async function putSettings(data) {
+  const next = { ...store.settings, ...data };
+  if (store.db) return store.db.doc('settings/main').set(next);
+  store.settings = next; ls.set('judiva.settings', next); onStore();
+}
+async function safe(fn, okMsg) {
+  try { await fn(); if (okMsg) toast(okMsg); return true; }
+  catch (e) { toast(e?.code === 'not_granted' ? 'Kaydetme izni verilmedi.' : 'Kaydedilemedi: ' + (e?.message || 'bilinmeyen hata')); return false; }
+}
+
+/* ---------- Oturum (kim kullanıyor) ---------- */
+// Roller: misafir (giriş yok), uye (kayıtlı müşteri), personel, mudur. Oturum bu cihazda saklanır.
+let session = ls.get('judiva.session', { role: 'misafir' });
+if (!['misafir', 'uye', 'personel', 'mudur'].includes(session.role) || (session.role !== 'misafir' && !session.id)) session = { role: 'misafir' };
+function setSession(s) { session = s; ls.set('judiva.session', s); custDraft = {}; pickedCustomer = null; ls.set('judiva.custDraft', custDraft); renderRole(); renderCart(); }
+function isStaff() { return session.role === 'personel' || session.role === 'mudur'; }
+function isMgr() { return session.role === 'mudur'; }
+function users() { return store.settings.users || []; }
+function me() { return isStaff() ? users().find(u => u.id === session.id) : session.role === 'uye' ? store.cache.customers.find(c => c.id === session.id) : null; }
+async function sha(t) { const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t)); return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join(''); }
+const userHash = (username, pw) => sha('judiva:' + username + ':' + pw);
+const custHash = (phone, pw) => sha('judiva-m:' + phone + ':' + pw);
+const phoneKey = p => { const d = String(p || '').replace(/\D/g, ''); return d.length > 10 ? d.slice(-10) : d; };
+function renderRole() {
+  const b = $('#roleBtn'); b.dataset.role = session.role;
+  $('#roleTxt').textContent = isStaff() ? ROLE_TR[session.role] + ' · ' + session.name : session.role === 'uye' ? 'Hesabım · ' + session.name : 'Giriş yap';
+  $('#panelBtn').hidden = !isStaff();
+}
+// Kullanıcı silinirse ya da müşteri kaydı kaldırılırsa oturumu kapat
+function checkSession() {
+  if (!store.ready || session.role === 'misafir') return;
+  if (isStaff() ? !users().some(u => u.id === session.id && u.role === session.role) : !store.cache.customers.some(c => c.id === session.id && c.hash)) { setSession({ role: 'misafir' }); closePanel(); toast('Oturum kapandı. Tekrar giriş yapın.'); }
+}
+
+/* ---------- Açılış ---------- */
+function buildHero() {
+  const wrap = $('#hcards');
+  wrap.innerHTML = HERO_IDS.map((id, i) => {
+    const p = byId(id); if (!p) return '';
+    const c = CATS.find(c => c.key === p.cat);
+    return `<div class="hcard" style="--i:${i};--z:${i % 2 ? 4 : 1}"><img src="${esc(p.img)}" alt="${esc(p.name)}"><div class="cap"><b>${esc(c.label)}</b>${esc(p.name)}</div></div>`;
+  }).join('');
+  layoutHero();
+  const hero = $('#hero');
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduce) hero.classList.add('go'); else setTimeout(() => hero.classList.add('go'), 1700);
+}
+const SCATTER = [[-.8, -.56, -12], [.78, -.6, 10], [-.86, .4, 8], [.84, .44, -9], [-.22, .8, -5], [.3, -.86, 6]];
+const SCATTER_M = [[-.74, -.58, -12], [.74, -.62, 10], [-.78, .3, 8], [.8, .26, -9], [.04, -.4, -5], [-.06, -.76, 6]];
+function layoutHero() {
+  const hero = $('#hero'); const W = hero.clientWidth, H = hero.clientHeight;
+  const mobile = W < 640;
+  const cw = mobile ? Math.min(112, W * .27) : Math.min(170, W * .135);
+  $$('.hcard', hero).forEach((c, i) => {
+    let x1, y1;
+    if (mobile) { const col = i % 3, row = Math.floor(i / 3); x1 = (col - 1) * (cw + 12); y1 = (row - .5) * (cw * 1.34 + 12); }
+    else { x1 = (i - 2.5) * (cw + 18); y1 = 0; }
+    const s = (mobile ? SCATTER_M : SCATTER)[i];
+    c.style.setProperty('--w', cw + 'px');
+    c.style.setProperty('--x1', x1 + 'px'); c.style.setProperty('--y1', y1 + 'px');
+    c.style.setProperty('--x2', (s[0] * (W / 2 + cw)) + 'px'); c.style.setProperty('--y2', (s[1] * (H / 2 + cw)) + 'px');
+    c.style.setProperty('--r2', s[2] + 'deg');
+  });
+}
+addEventListener('resize', () => { clearTimeout(layoutHero.t); layoutHero.t = setTimeout(layoutHero, 120); });
+
+/* ---------- Katmanlı pasta ---------- */
+const CAKE_N = 73, cakeFrames = [];
+let cakeShown = -1, cakeWant = 0;
+function drawCake(i) {
+  cakeWant = i;
+  const im = cakeFrames[i]; if (!im || !im.complete || !im.naturalWidth || cakeShown === i) return;
+  const cv = $('#cakeCv'); cv.getContext('2d').drawImage(im, 0, 0, cv.width, cv.height); cakeShown = i;
+}
+function loadCake() {
+  if (cakeFrames.length) return;
+  for (let i = 0; i < CAKE_N; i++) {
+    const im = new Image(); im.decoding = 'async';
+    im.onload = () => { if (i === cakeWant || (cakeShown < 0 && i === 0)) drawCake(cakeWant); };
+    im.src = 'cake/f' + String(i + 1).padStart(2, '0') + '.jpg'; cakeFrames.push(im);
+  }
+}
+function cakeScroll() {
+  const sec = $('#katlar'), cake = $('#cake'); if (!sec) return;
+  const r = sec.getBoundingClientRect(); const span = r.height - innerHeight;
+  if (r.top < innerHeight * 2) loadCake();
+  const p = Math.min(1, Math.max(0, -r.top / (span || 1)));
+  const e = Math.min(1, Math.max(0, (p - .04) / .82));
+  cake.style.setProperty('--e', e.toFixed(3));
+  drawCake(Math.round(e * (CAKE_N - 1)));
+}
+addEventListener('scroll', () => requestAnimationFrame(cakeScroll), { passive: true });
+addEventListener('load', () => { loadCake(); cakeScroll(); });
+
+/* ---------- Menü ---------- */
+function renderMenu() {
+  const q = norm($('#q').value.trim());
+  const prods = allProducts();
+  $('#chips').innerHTML = CATS.map(c => `<a href="#cat-${c.key}">${esc(c.label)}</a>`).join('');
+  let any = false;
+  $('#chapters').innerHTML = CATS.map(c => {
+    const all = prods.filter(p => p.cat === c.key);
+    const list = q ? all.filter(p => norm(p.name + ' ' + (p.brand || '') + ' ' + detOf(p)).includes(q)) : all;
+    if (q && !list.length) return '';
+    any = true;
+    const cover = (c.cover && byId(c.cover)) || all.find(p => p.img);
+    const units = [...new Set(all.map(unitOf))].join(', ');
+    return `<section class="chapter" id="cat-${c.key}">
+      <div class="ch-head">${cover ? `<img src="${esc(cover.img)}" alt="" loading="lazy">` : ''}
+        <span class="eyebrow">${all.length} ürün · fiyatlar ${esc(units)} başına</span>
+        <h2>${esc(c.word)}</h2>
+      </div>
+      ${c.key === 'mezeler' && !q ? sofraHTML() : ''}
+      <div class="grid">${list.map(cardHTML).join('')}</div>
+    </section>`;
+  }).join('') || '';
+  if (!any) $('#chapters').innerHTML = `<p class="empty">“${esc($('#q').value)}” için ürün bulunamadı. Farklı bir kelime deneyin.</p>`;
+  observeChapters(); renderSofra();
+}
+function cardHTML(p) {
+  const line = cart.find(l => l.id === p.id);
+  const det = detOf(p);
+  return `<article class="pcard${line ? ' in' : ''}" data-id="${esc(p.id)}">
+    <div class="ph">${p.img ? `<img src="${esc(p.img)}" alt="${esc(p.name)}" loading="lazy">` : `<span class="mono">J</span>`}</div>
+    <div class="bd">${p.custom ? '<span class="tag-new">Yeni ürün</span>' : ''}<h3><a href="#urun-${esc(p.id)}" style="color:inherit;text-decoration:none">${esc(p.name)}</a></h3>${det ? `<p class="det">${esc(det)}</p>` : ''}</div>
+    <div class="ft"><span class="price">${fmt(p.price)} <small>/ ${esc(unitOf(p))}</small></span>${ctrlHTML(p, line)}</div>
+  </article>`;
+}
+function ctrlHTML(p, line) {
+  if (!line) return `<button class="add" data-act="add" data-id="${esc(p.id)}">+ Sepete ekle</button>`;
+  return `<span class="step"><button data-act="dec" data-id="${esc(p.id)}" aria-label="Azalt">−</button><input type="number" inputmode="decimal" min="0" step="any" value="${line.qty}" data-qty="${esc(p.id)}" aria-label="${esc(p.name)} miktarı"><button data-act="inc" data-id="${esc(p.id)}" aria-label="Artır">+</button></span>`;
+}
+function refreshCard(id) {
+  $$(`.pcard[data-id="${CSS.escape(id)}"], .prow[data-id="${CSS.escape(id)}"]`).forEach(el => {
+    const p = byId(id); if (!p) return;
+    const line = cart.find(l => l.id === id);
+    el.classList.toggle('in', !!line);
+    const ft = $('.ft', el); ft.lastElementChild.outerHTML = ctrlHTML(p, line);
+  });
+}
+
+/* ---------- Sepet ---------- */
+let cart = ls.get('judiva.cart', []);
+let couponCode = ls.get('judiva.coupon', '');
+let custDraft = ls.get('judiva.custDraft', {});
+let pickedCustomer = null;
+function saveCart() { ls.set('judiva.cart', cart); ls.set('judiva.coupon', couponCode); }
+function setQty(id, qty) {
+  qty = Math.max(0, Math.round((+qty || 0) * 100) / 100);
+  const i = cart.findIndex(l => l.id === id);
+  if (qty <= 0) { if (i >= 0) cart.splice(i, 1); }
+  else if (i >= 0) cart[i].qty = qty; else cart.push({ id, qty });
+  saveCart(); refreshCard(id); renderCart(); refreshProduct();
+}
+function cartLines() { return cart.map(l => ({ ...l, p: byId(l.id) })).filter(l => l.p); }
+function findCoupon(code) {
+  const c = code.trim().toUpperCase();
+  return store.cache.coupons.find(x => String(x.code).toUpperCase() === c);
+}
+function couponCheck(code, subtotal) {
+  if (!code) return { ok: false, discount: 0 };
+  const c = findCoupon(code);
+  if (!c) return { ok: false, discount: 0, msg: 'Bu kupon kodu bulunamadı. Kodu kontrol edin.' };
+  if (c.active === false) return { ok: false, discount: 0, msg: 'Bu kupon şu an kullanımda değil.' };
+  if (c.expires && new Date(c.expires + 'T23:59:59') < new Date()) return { ok: false, discount: 0, msg: `Bu kuponun süresi ${fmtShort(c.expires + 'T12:00')} tarihinde doldu.` };
+  if (c.min && subtotal < c.min) return { ok: false, discount: 0, msg: `Bu kupon ${fmt(c.min)} ve üzeri sepetlerde geçerli. ${fmt(c.min - subtotal)} daha ekleyin.` };
+  const discount = c.type === 'tutar' ? Math.min(+c.value || 0, subtotal) : subtotal * (+c.value || 0) / 100;
+  return { ok: true, discount, coupon: c, msg: c.type === 'tutar' ? `${fmt(c.value)} indirim uygulandı.` : `%${c.value} indirim uygulandı.` };
+}
+function totals() {
+  const lines = cartLines();
+  const subtotal = lines.reduce((s, l) => s + l.p.price * l.qty, 0);
+  const cc = couponCheck(couponCode, subtotal);
+  return { lines, subtotal, cc, discount: cc.discount, total: subtotal - cc.discount };
+}
+function renderCart() {
+  const n = cart.length;
+  $('#cartCount').textContent = n; $('#fabCount').textContent = n;
+  $('#fab').classList.toggle('show', n > 0);
+  const t = totals();
+  const inPanel = !$('#panel').hidden && tab === 'yeni' && $('#pnCartBody');
+  const body = inPanel ? $('#pnCartBody') : $('#drBody'), foot = inPanel ? $('#pnCartFoot') : $('#drFoot');
+  if (inPanel) { $('#drBody').innerHTML = ''; $('#drFoot').innerHTML = ''; }
+  if (!t.lines.length) {
+    body.innerHTML = inPanel ? `<p class="empty">Soldaki menüden ürün ekleyin. Müşteriyi seçip teklifi buradan oluşturursunuz.</p>` : `<p class="empty">Sepetiniz boş. Menüdeki ürünlerde <b>+ Sepete ekle</b> düğmesine dokunun; miktarı burada değiştirebilirsiniz.</p>`;
+    foot.innerHTML = inPanel ? '' : `<button class="btn" data-act="closeCart">Menüye dön</button>`; return;
+  }
+  const staff = isStaff();
+  const cust = staff ? store.cache.customers.slice().sort((a, b) => (a.name || '').localeCompare(b.name || '', 'tr')) : [];
+  const guest = session.role === 'misafir';
+  if (session.role === 'uye' && !custDraft.name) { const c = me(); if (c) custDraft = { name: c.name, contact: c.contact, phone: c.phone, email: c.email, addr: c.addr, note: custDraft.note || '' }; }
+  const d = custDraft;
+  body.innerHTML = `
+    <div class="lines">${t.lines.map(l => `<div class="line">
+      ${l.p.img ? `<img src="${esc(l.p.img)}" alt="">` : `<div class="ph"><span class="mono">J</span></div>`}
+      <div style="min-width:0"><div class="nm" data-prod="${esc(l.id)}" style="cursor:pointer">${esc(l.p.name)}</div><div class="sub num">${fmt(l.p.price)} / ${esc(unitOf(l.p))}</div>
+        <div style="margin-top:6px">${ctrlHTML(l.p, l)}</div></div>
+      <div class="rt"><b class="num">${fmt(l.p.price * l.qty)}</b><button class="link" data-act="rm" data-id="${esc(l.id)}">Kaldır</button></div>
+    </div>`).join('')}</div>
+    <div>
+      <p class="sect-t">Kupon</p>
+      <div class="row"><input id="coupon" placeholder="Kupon kodu" value="${esc(couponCode)}" autocomplete="off" style="text-transform:uppercase"><button class="btn" data-act="applyCoupon">Uygula</button>${couponCode ? `<button class="btn" data-act="clearCoupon" aria-label="Kuponu kaldır">×</button>` : ''}</div>
+      ${couponCode ? `<p class="msg ${t.cc.ok ? 'ok' : 'bad'}">${esc(t.cc.msg || '')}</p>` : ''}
+    </div>
+    ${guest ? `<div class="box"><h3>Teklif almak için giriş yapın</h3><p class="hint">Bir kere üye olun; bilgileriniz kaydedilir, bu cihazda girişli kalırsınız ve tüm tekliflerinizi “Hesabım”dan görürsünüz.</p>
+      <div class="acts"><button class="btn pri" data-act="openLogin" data-to="uyelik">Üye ol</button><button class="btn" data-act="openLogin" data-to="giris">Giriş yap</button></div></div>` : `<div>
+      <p class="sect-t">${staff ? 'Teklif verilecek müşteri' : 'Bilgileriniz'}</p>
+      ${staff ? `<div class="field" style="margin-bottom:10px"><label for="pickCust">Kayıtlı müşteri</label><select id="pickCust"><option value="">Yeni müşteri</option>${cust.map(c => `<option value="${esc(c.id)}"${pickedCustomer === c.id ? ' selected' : ''}>${esc(c.name)}${c.contact ? ' · ' + esc(c.contact) : ''}</option>`).join('')}</select></div>` : ''}
+      <div class="fields">
+        <div class="field full"><label for="c_name">Firma / ad soyad *</label><input id="c_name" value="${esc(d.name)}" autocomplete="organization"></div>
+        <div class="field"><label for="c_contact">Yetkili kişi</label><input id="c_contact" value="${esc(d.contact)}" autocomplete="name"></div>
+        <div class="field"><label for="c_phone">Telefon *</label><input id="c_phone" value="${esc(d.phone)}" inputmode="tel" autocomplete="tel"${session.role === 'uye' ? ' readonly' : ''}></div>
+        <div class="field full"><label for="c_email">E-posta</label><input id="c_email" value="${esc(d.email)}" inputmode="email" autocomplete="email"></div>
+        <div class="field full"><label for="c_addr">Adres</label><input id="c_addr" value="${esc(d.addr)}" autocomplete="street-address"></div>
+        <div class="field full"><label for="c_note">Teklife not</label><textarea id="c_note" placeholder="Teslim tarihi, etkinlik, özel istek…">${esc(d.note)}</textarea></div>
+      </div>
+      <p class="msg bad" id="custErr" hidden></p>
+    </div>
+    <div class="who">${staff ? `Teklifi hazırlayan: <b>${esc(session.name)}</b> (${ROLE_TR[session.role]})` : 'Teklifi siz oluşturuyorsunuz. Judiva ekibi teklifinizi görür ve sizinle iletişime geçer.'}</div>`}`;
+  foot.innerHTML = `
+    <div class="tot"><span>Ara toplam</span><span>${fmt(t.subtotal)}</span></div>
+    ${t.cc.ok ? `<div class="tot disc"><span>Kupon ${esc(t.cc.coupon.code)}</span><span>−${fmt(t.discount)}</span></div>` : ''}
+    <div class="tot big"><span>Toplam</span><span>${fmt(t.total)}</span></div>
+    ${guest ? `<button class="btn pri" data-act="openLogin" data-to="giris">Giriş yap ve teklif al</button>` : `<button class="btn pri" data-act="makeOffer" id="makeOfferBtn">Teklifi oluştur ve PDF hazırla</button>`}`;
+}
+function readCustForm() {
+  const v = id => ($('#' + id)?.value || '').trim();
+  custDraft = { name: v('c_name'), contact: v('c_contact'), phone: v('c_phone'), email: v('c_email'), addr: v('c_addr'), note: v('c_note') };
+  ls.set('judiva.custDraft', custDraft);
+  return custDraft;
+}
+function openCart() { $('#drawer').classList.add('open'); $('#scrim').hidden = false; renderCart(); }
+function closeCart() { $('#drawer').classList.remove('open'); $('#scrim').hidden = true; }
+
+async function makeOffer() {
+  if (session.role === 'misafir') { openRole('giris'); return; }
+  const d = readCustForm();
+  const err = $('#custErr');
+  if (!d.name || !d.phone) { err.textContent = 'Teklif için firma / ad soyad ve telefon gerekli.'; err.hidden = false; $(d.name ? '#c_phone' : '#c_name').focus(); return; }
+  const t = totals();
+  if (!t.lines.length) return;
+  const btn = $('#makeOfferBtn'); btn.disabled = true; btn.textContent = 'Kaydediliyor…';
+  const now = new Date();
+  // Müşteri kaydı: seçili olan, aynı telefonlu kayıt ya da yeni kayıt
+  const pk = phoneKey(d.phone);
+  let custId = (session.role === 'uye' ? session.id : pickedCustomer) || store.cache.customers.find(c => pk && phoneKey(c.phone) === pk)?.id;
+  const existing = custId && store.cache.customers.find(c => c.id === custId);
+  if (!custId) custId = uid('m_');
+  const by = session.role === 'uye' ? { role: 'musteri', name: 'Müşteri (kendisi)' } : { role: session.role, name: session.name + (isMgr() ? ' (Müdür)' : ''), staffId: session.id };
+  const custRec = { ...(existing || {}), name: d.name, contact: d.contact, phone: d.phone, email: d.email, addr: d.addr,
+    source: existing?.source || (by.role === 'musteri' ? 'Kendi teklifini oluşturdu' : 'Personel: ' + by.name),
+    createdAt: existing?.createdAt || now.toISOString(), updatedAt: now.toISOString() };
+  delete custRec.id;
+  const no = 'JDV-' + now.toISOString().slice(2, 10).replace(/-/g, '') + '-' + Math.random().toString(36).slice(2, 6).toUpperCase();
+  const valid = new Date(now.getTime() + (+store.settings.validDays || 15) * 864e5);
+  const offer = {
+    no, createdAt: now.toISOString(), validUntil: valid.toISOString(), status: 'Yeni', by,
+    customerId: custId, customer: { name: d.name, contact: d.contact, phone: d.phone, email: d.email, addr: d.addr },
+    items: t.lines.map(l => ({ id: l.id, name: l.p.name, cat: l.p.cat, unit: unitOf(l.p), price: l.p.price, qty: l.qty, img: l.p.img && !String(l.p.img).startsWith('data:') ? l.p.img : null, det: detOf(l.p) })),
+    subtotal: t.subtotal, coupon: t.cc.ok ? { code: t.cc.coupon.code, type: t.cc.coupon.type, value: t.cc.coupon.value } : null,
+    discount: t.discount, total: t.total, note: d.note,
+  };
+  if (custRec.hash && phoneKey(custRec.phone) !== phoneKey(existing.phone)) custRec.phone = existing.phone; // üyenin giriş numarası değişmesin
+  const ok = await safe(async () => { await put('customers', custId, custRec); await put('offers', no, offer); });
+  btn.disabled = false; btn.textContent = 'Teklifi oluştur ve PDF hazırla';
+  if (!ok) return;
+  cart = []; couponCode = ''; pickedCustomer = null; custDraft = isStaff() ? {} : { ...d, note: '' }; ls.set('judiva.custDraft', custDraft); saveCart();
+  renderMenu(); renderCart(); closeCart();
+  openOffer({ ...offer, id: no }, true);
+}
+
+/* ---------- Teklif belgesi ve PDF ---------- */
+function docHTML(o) {
+  const c = o.customer || {};
+  return `<div class="doc">
+    <div class="doc-top">
+      <div class="doc-brand">${LOGO}<small>Fiyat teklifi</small></div>
+      <div class="doc-meta"><b>${esc(o.no)}</b><span>Tarih: ${esc(fmtDate(o.createdAt))}</span><span>Geçerlilik: ${esc(fmtDate(o.validUntil))}</span></div>
+    </div>
+    <div class="doc-parties">
+      <div><h4>Sayın</h4><p><b>${esc(c.name)}</b></p>${c.contact ? `<p>${esc(c.contact)}</p>` : ''}<p>${esc(c.phone)}${c.email ? ' · ' + esc(c.email) : ''}</p>${c.addr ? `<p>${esc(c.addr)}</p>` : ''}</div>
+      <div><h4>Hazırlayan</h4><p><b>${esc(o.by?.name)}</b></p><p>Durum: ${esc(o.status)}</p></div>
+    </div>
+    <table>
+      <thead><tr><th style="width:28px">#</th><th>Ürün</th><th class="r">Miktar</th><th class="r">Birim fiyat</th><th class="r">Tutar</th></tr></thead>
+      <tbody>${o.items.map((it, i) => `<tr><td>${i + 1}</td><td><div class="it">${it.img ? `<img src="${esc(it.img)}" alt="">` : ''}<div>${esc(it.name)}${it.det ? `<small>${esc(it.det)}</small>` : ''}</div></div></td><td class="r">${fmtQty(it.qty)} ${esc(it.unit)}</td><td class="r">${fmt(it.price)}</td><td class="r">${fmt(it.price * it.qty)}</td></tr>`).join('')}</tbody>
+    </table>
+    <div class="doc-sum">
+      <div><span>Ara toplam</span><span>${fmt(o.subtotal)}</span></div>
+      ${o.coupon ? `<div class="d"><span>Kupon ${esc(o.coupon.code)} ${o.coupon.type === 'tutar' ? '' : '(%' + esc(o.coupon.value) + ')'}</span><span>−${fmt(o.discount)}</span></div>` : ''}
+      <div class="g"><span>Genel toplam</span><span>${fmt(o.total)}</span></div>
+    </div>
+    ${o.note ? `<div class="doc-note"><b>Not:</b> ${esc(o.note)}</div>` : ''}
+    <div class="doc-foot"><span>Fiyatlar Judiva güncel fiyat listesinden alınmıştır. Bu teklif ${esc(fmtDate(o.validUntil))} tarihine kadar geçerlidir.</span><span>${esc(o.no)}</span></div>
+  </div>`;
+}
+let currentOffer = null;
+function openOffer(o, fresh) {
+  currentOffer = o;
+  $('#offerTitle').textContent = fresh ? 'Teklifiniz hazır' : 'Teklif ' + o.no;
+  const staff = isStaff();
+  $('#offerActs').innerHTML = `<button class="btn pri" data-act="pdf">PDF indir</button>
+    ${staff && !fresh ? `<label class="field" style="display:flex;align-items:center;gap:8px"><span class="hint">Durum</span><select class="st" data-s="${esc(o.status)}" data-status="${esc(o.id)}">${STATUSES.map(s => `<option${s === o.status ? ' selected' : ''}>${s}</option>`).join('')}</select></label>` : ''}
+    <button class="btn" data-act="reorder">Sepete yeniden yükle</button>`;
+  $('#pdfMsg').hidden = true;
+  $('#docFit').innerHTML = docHTML(o);
+  const dlg = $('#offerDlg'); if (!dlg.open) dlg.showModal();
+  fitDoc();
+}
+function fitDoc() {
+  const sc = $('#docScroll'), fit = $('#docFit'), doc = $('.doc', fit); if (!doc) return;
+  const w = sc.clientWidth - 24; const s = Math.min(1, w / 794);
+  fit.style.transform = `scale(${s})`; fit.style.width = '794px';
+  fit.style.height = (doc.offsetHeight * s) + 'px'; fit.style.marginBottom = '0';
+  sc.style.height = 'auto';
+  fit.parentElement.style.minHeight = (doc.offsetHeight * s + 24) + 'px';
+}
+addEventListener('resize', () => { if ($('#offerDlg').open) fitDoc(); });
+async function buildPdf(o, withImgs = true) {
+  const stage = $('#pdfStage');
+  stage.innerHTML = docHTML(withImgs ? o : { ...o, items: o.items.map(i => ({ ...i, img: null })) });
+  const el = stage.firstElementChild;
+  await Promise.all($$('img', el).map(im => im.complete ? 0 : new Promise(r => { im.onload = im.onerror = r; })));
+  try { await document.fonts.ready; } catch {}
+  const canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: '#fffdf9', logging: false });
+  stage.innerHTML = '';
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+  const pw = 210, ph = 297; const pxPerMm = canvas.width / pw; const pageH = Math.floor(ph * pxPerMm);
+  for (let y = 0, i = 0; y < canvas.height; y += pageH, i++) {
+    const h = Math.min(pageH, canvas.height - y);
+    const part = document.createElement('canvas'); part.width = canvas.width; part.height = h;
+    const ctx = part.getContext('2d'); ctx.fillStyle = '#fffdf9'; ctx.fillRect(0, 0, part.width, h);
+    ctx.drawImage(canvas, 0, y, canvas.width, h, 0, 0, canvas.width, h);
+    if (i) pdf.addPage();
+    pdf.addImage(part.toDataURL('image/jpeg', .92), 'JPEG', 0, 0, pw, h / pxPerMm);
+  }
+  return pdf.output('blob');
+}
+async function downloadPdf() {
+  const o = currentOffer; if (!o) return;
+  const msg = $('#pdfMsg'); msg.hidden = false; msg.className = 'msg'; msg.textContent = 'PDF hazırlanıyor…';
+  let blob;
+  try { blob = await buildPdf(o, true); }
+  catch { try { blob = await buildPdf(o, false); } catch (e) { msg.className = 'msg bad'; msg.textContent = 'PDF oluşturulamadı. Sayfayı yenileyip tekrar deneyin.'; return; } }
+  let dl = null; try { dl = window.claude?.use ? await window.claude.use('downloads') : null; } catch {}
+  if (!dl) { // kendi alan adında: tarayıcının normal indirmesi
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `Judiva-Teklif-${o.no}.pdf`;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    msg.className = 'msg ok'; msg.textContent = 'PDF indirildi.'; return;
+  }
+  try {
+    await dl.save({ filename: `Judiva-Teklif-${o.no}.pdf`, data: blob });
+    msg.className = 'msg ok'; msg.textContent = 'PDF kaydedildi.';
+  } catch (e) {
+    msg.className = 'msg' + (e?.code === 'declined' ? '' : ' bad');
+    msg.textContent = e?.code === 'declined' ? 'İndirme iptal edildi.' : e?.code === 'rate_limited' ? 'Biraz bekleyip tekrar deneyin.' : 'PDF indirilemedi.';
+  }
+}
+
+/* ---------- Ürün sayfası ---------- */
+let curProd = null;
+function openProduct(id) {
+  const p = byId(id); if (!p) return;
+  curProd = p.id;
+  const c = CATS.find(c => c.key === p.cat);
+  const line = cart.find(l => l.id === p.id);
+  const rel = allProducts().filter(x => x.cat === p.cat && x.id !== p.id && x.img).slice(0).sort(() => .5 - Math.random()).slice(0, 4);
+  $('#prodCat').textContent = c?.label || 'Ürün';
+  $('#prodBody').innerHTML = `<div class="pv">
+      <div class="pv-img">${p.img ? `<img src="${esc(p.img)}" alt="${esc(p.name)}">` : '<span class="mono">J</span>'}</div>
+      <div class="pv-info">
+        ${p.brand ? `<span class="eyebrow">${esc(p.brand)}</span>` : ''}
+        <h3>${esc(p.name)}</h3>
+        <div class="pv-price">${fmt(p.price)} <small>/ ${esc(unitOf(p))}</small></div>
+        ${(p.d || []).length ? `<dl>${p.d.map(x => `<dt>${esc(x[0])}</dt><dd>${esc(x[1])}</dd>`).join('')}</dl>` : ''}
+        <div class="pv-buy" id="pvBuy">${line ? ctrlHTML(p, line) : `<button class="btn pri" data-act="add" data-id="${esc(p.id)}">+ Sepete ekle</button>`}</div>
+        <div class="pv-line" id="pvLine">${line ? `Sepette: ${fmtQty(line.qty)} ${esc(unitOf(p))} · ${fmt(line.qty * p.price)}` : ''}</div>
+        ${line ? `<button class="btn" data-act="cartFromProd">Sepete git</button>` : ''}
+      </div>
+    </div>
+    ${rel.length ? `<div class="rel"><p class="sect-t">Aynı kategoriden</p><div class="rel-grid">${rel.map(r => `<button data-prod="${esc(r.id)}"><img src="${esc(r.img)}" alt="" loading="lazy"><span>${esc(r.name)}<b>${fmt(r.price)} / ${esc(unitOf(r))}</b></span></button>`).join('')}</div></div>` : ''}`;
+  const dlg = $('#prodDlg'); if (!dlg.open) dlg.showModal();
+  dlg.scrollTop = 0;
+  if (location.hash !== '#urun-' + p.id) history.replaceState(null, '', '#urun-' + p.id);
+}
+function refreshProduct() {
+  if (!$('#prodDlg').open || !curProd) return;
+  const p = byId(curProd), line = cart.find(l => l.id === curProd); if (!p) return;
+  const buy = $('#pvBuy'); if (!buy) return;
+  if (!!line !== !!buy.querySelector('.step')) { const y = $('#prodDlg').scrollTop; openProduct(curProd); $('#prodDlg').scrollTop = y; return; }
+  if (line && document.activeElement?.dataset.qty !== curProd) buy.querySelector('input').value = line.qty;
+  $('#pvLine').textContent = line ? `Sepette: ${fmtQty(line.qty)} ${unitOf(p)} · ${fmt(line.qty * p.price)}` : '';
+}
+$('#prodDlg').addEventListener('close', () => { curProd = null; if (location.hash.startsWith('#urun-')) history.replaceState(null, '', '#menu'); });
+
+/* ---------- Meze sofrası kur ---------- */
+const SIZES = [{ kg: .5, label: '500 g', sub: 'Az kişi', r: 16 }, { kg: 1, label: '1 kg', sub: 'Orta sofra', r: 22 }, { kg: 2, label: '2 kg', sub: 'Kalabalık', r: 28 }];
+const SLOTS = [[24, 30, 25], [52, 24, 24], [79, 32, 25], [33, 63, 27], [65, 60, 28], [88, 69, 20], [11, 66, 19], [50, 86, 19], [74, 90, 17], [12, 33, 16], [91, 15, 14], [8, 10, 13]];
+let sofra = ls.get('judiva.sofra', { kg: 1, sel: [] });
+let sofraQ = '';
+function saveSofra() { ls.set('judiva.sofra', sofra); }
+function mezeler() { return allProducts().filter(p => p.cat === 'mezeler'); }
+function sofraHTML() {
+  return `<div class="sofra" id="sofra">
+    <div class="sf-left">
+      <div><span class="eyebrow">Meze sofrası kur</span><h3>Sofranı kendin seç.</h3></div>
+      <p>Mezeleri seçtikçe sağdaki sofra kurulur. Hepsini tek dokunuşla sepete ekleyip teklif alabilirsiniz.</p>
+      <div><p class="sf-step"><b>1.</b>Her mezeden ne kadar</p><div class="sizes" id="sfSizes"></div></div>
+      <div><p class="sf-step"><b>2.</b>Mezeleri seç</p><input class="sf-search" id="sfQ" type="search" placeholder="Meze ara" aria-label="Meze ara" value="${esc(sofraQ)}"><div class="tiles" id="sfTiles"></div></div>
+    </div>
+    <div class="sf-right"><div class="table" id="sfTable" role="img" aria-label="Seçilen mezelerle kurulan sofra"></div><div class="sf-sum" id="sfSum"></div></div>
+  </div>`;
+}
+function renderSofra() {
+  if (!$('#sofra')) return;
+  const ms = mezeler();
+  sofra.sel = sofra.sel.filter(id => ms.some(m => m.id === id));
+  $('#sfSizes').innerHTML = SIZES.map(z => `<button data-act="sfSize" data-kg="${z.kg}" class="${z.kg === sofra.kg ? 'on' : ''}"><i style="width:${z.r}px;height:${z.r}px"></i><span>${z.label}</span><small>${z.sub}</small></button>`).join('');
+  renderSofraTiles();
+  const sel = sofra.sel.map(byId).filter(Boolean);
+  const shown = sel.length ? sel.slice(-SLOTS.length) : ms.filter(m => m.img).slice(0, 6);
+  $('#sfTable').innerHTML = shown.map((p, i) => { const [x, y, z] = SLOTS[i]; return `<div class="plate${sel.length ? '' : ' ghost'}" style="--x:${x}%;--y:${y}%;--s:${z}%">${p.img ? `<img src="${esc(p.img)}" alt="">` : ''}</div>`; }).join('')
+    + `<div class="table-label"><b>${sel.length ? sel.length + ' meze' : 'Boş sofra'}</b><span>${sel.length ? fmtQty(sel.length * sofra.kg) + ' kg toplam' : 'Soldan meze seçin'}</span></div>`;
+  const total = sel.reduce((t, p) => t + p.price * sofra.kg, 0);
+  $('#sfSum').innerHTML = sel.length ? `<div class="lns">${sel.map(p => `<div class="ln"><span>${esc(p.name)} · ${fmtQty(sofra.kg)} ${esc(unitOf(p))}</span><span>${fmt(p.price * sofra.kg)}</span></div>`).join('')}</div>
+      <div class="tot big"><span>Sofra toplamı</span><span>${fmt(total)}</span></div>
+      <button class="btn go" data-act="sfAdd">Sofrayı sepete ekle</button><button class="link" data-act="sfClear" style="justify-self:start">Seçimi temizle</button>`
+    : `<p class="hint">Seçtiğiniz mezeler, miktarı ve fiyatı burada listelenir.</p>`;
+}
+function renderSofraTiles() {
+  const q = norm(sofraQ);
+  const list = mezeler().filter(p => !q || norm(p.name).includes(q));
+  const box = $('#sfTiles'), top = box.scrollTop;
+  box.innerHTML = list.map(p => { const on = sofra.sel.includes(p.id); return `<button class="tile${on ? ' on' : ''}" data-act="sfToggle" data-id="${esc(p.id)}" aria-pressed="${on}">
+    ${p.img ? `<img src="${esc(p.img)}" alt="" loading="lazy">` : '<span class="ph"><span class="mono" style="font-size:18px">J</span></span>'}
+    <span class="tn">${esc(p.name)}<small>${fmt(p.price)} / ${esc(unitOf(p))}</small></span><span class="ck">${on ? '✓' : '+'}</span></button>`; }).join('') || '<p class="hint">Bu isimde meze yok.</p>';
+  box.scrollTop = top;
+}
+
+/* ---------- Kim kullanıyor ---------- */
+let pickRole = 'giris';
+function openRole(pick) { if (pick) pickRole = pick; renderRoleForm(); const d = $('#roleDlg'); if (!d.open) d.showModal(); }
+const errBox = '<p class="msg bad" id="lgErr" hidden></p>';
+function showErr(t) { const er = $('#lgErr'); er.textContent = t; er.hidden = false; }
+function renderRoleForm() {
+  const f = $('#roleForm'); const logged = session.role !== 'misafir';
+  $('#rolePicks').hidden = logged;
+  $('#roleTitle').textContent = logged ? (isStaff() ? ROLE_TR[session.role] + ' · ' + session.name : 'Hesabım') : 'Giriş';
+  if (session.role === 'uye') {
+    const c = me() || {}; const os = store.cache.offers.filter(o => o.customerId === session.id).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+    f.innerHTML = `<div class="box"><h3>${esc(c.name)}</h3><p class="hint">${esc([c.contact, c.phone, c.email].filter(Boolean).join(' · '))}</p></div>
+      <p class="sect-t">Tekliflerim</p>
+      ${os.length ? `<div class="lines">${os.map(o => `<button class="line acc-off" data-open="${esc(o.id)}"><div style="min-width:0"><div class="nm">${esc(o.no)}</div><div class="sub">${esc(fmtShort(o.createdAt))} · ${o.items?.length || 0} ürün</div></div><div class="rt"><b class="num">${fmt(o.total)}</b><span class="st" data-s="${esc(o.status)}">${esc(o.status)}</span></div></button>`).join('')}</div>`
+        : '<p class="hint">Henüz teklifiniz yok. Menüden ürün seçip sepette teklif oluşturduğunuzda burada görünür.</p>'}
+      <div class="acts"><button class="btn" data-act="logout">Çıkış yap</button></div>`;
+    return;
+  }
+  if (isStaff()) { f.innerHTML = `<div class="acts"><button class="btn pri" data-act="goPanel">Panele git</button><button class="btn" data-act="logout">Çıkış yap</button></div>`; return; }
+  $$('#roleDlg [data-pick]').forEach(b => b.classList.toggle('on', b.dataset.pick === pickRole));
+  if (pickRole === 'giris') f.innerHTML = `<form id="lgCust" class="fields">
+      <div class="field full"><label for="lg_phone">Telefon</label><input id="lg_phone" inputmode="tel" autocomplete="tel" required></div>
+      <div class="field full"><label for="lg_pw">Şifre</label><input id="lg_pw" type="password" autocomplete="current-password" required></div>
+      <div class="field full">${errBox}<button class="btn pri" type="submit">Giriş yap</button></div></form>
+      <p class="hint">Bu cihazda bir kere giriş yaptığınızda çıkış yapana kadar girişli kalırsınız. Hesabınız yoksa <button class="link" data-pick="uyelik">üye olun</button>.</p>`;
+  else if (pickRole === 'uyelik') f.innerHTML = `<form id="lgReg" class="fields">
+      <div class="field full"><label for="rg_name">Firma / ad soyad *</label><input id="rg_name" autocomplete="organization" required></div>
+      <div class="field"><label for="rg_contact">Yetkili kişi</label><input id="rg_contact" autocomplete="name"></div>
+      <div class="field"><label for="rg_phone">Telefon *</label><input id="rg_phone" inputmode="tel" autocomplete="tel" required></div>
+      <div class="field full"><label for="rg_email">E-posta</label><input id="rg_email" inputmode="email" autocomplete="email"></div>
+      <div class="field full"><label for="rg_addr">Adres</label><input id="rg_addr" autocomplete="street-address"></div>
+      <div class="field full"><label for="rg_pw">Şifre * <small class="hint">(en az 4 karakter)</small></label><input id="rg_pw" type="password" autocomplete="new-password" required></div>
+      <div class="field full">${errBox}<button class="btn pri" type="submit">Üye ol ve giriş yap</button></div></form>
+      <p class="hint">Bilgileriniz bir kere kaydedilir; sonraki tekliflerde tekrar yazmanız gerekmez.</p>`;
+  else f.innerHTML = `<form id="lgTeam" class="fields">
+      <div class="field"><label for="lg_user">Kullanıcı adı</label><input id="lg_user" autocomplete="username" autocapitalize="none" required></div>
+      <div class="field"><label for="lg_tpw">Şifre</label><input id="lg_tpw" type="password" autocomplete="current-password" required></div>
+      <div class="field full">${errBox}<button class="btn pri" type="submit">Giriş yap</button></div></form>
+      <p class="hint">Kullanıcı adları ve şifreler müdür panelindeki Kullanıcılar sekmesinden verilir.</p>`;
+}
+async function loginCustomer() {
+  const pk = phoneKey($('#lg_phone').value); const pw = $('#lg_pw').value;
+  if (!pk || !pw) return showErr('Telefon ve şifre girin.');
+  const h = await custHash(pk, pw);
+  const c = store.cache.customers.find(c => c.hash && phoneKey(c.phone) === pk);
+  if (!c) return showErr('Bu numarayla üyelik bulunamadı. Üye olabilirsiniz.');
+  if (c.hash !== h) return showErr('Şifre yanlış. Tekrar deneyin.');
+  setSession({ role: 'uye', id: c.id, name: c.contact || c.name }); $('#roleDlg').close(); toast('Hoş geldiniz, ' + (c.contact || c.name));
+}
+async function registerCustomer() {
+  const v = id => ($('#' + id)?.value || '').trim();
+  const pk = phoneKey(v('rg_phone')); const pw = $('#rg_pw').value;
+  if (!v('rg_name') || pk.length < 10) return showErr('Firma / ad soyad ve geçerli bir telefon numarası girin.');
+  if (pw.length < 4) return showErr('Şifre en az 4 karakter olmalı.');
+  const old = store.cache.customers.find(c => phoneKey(c.phone) === pk);
+  if (old?.hash) return showErr('Bu numara zaten üye. Müşteri girişinden girin.');
+  const id = old?.id || uid('m_'); const now = new Date().toISOString();
+  const rec = { ...(old || {}), name: v('rg_name'), contact: v('rg_contact') || old?.contact || '', phone: v('rg_phone'), email: v('rg_email') || old?.email || '', addr: v('rg_addr') || old?.addr || '',
+    hash: await custHash(pk, pw), memberSince: now, source: old?.source || 'Siteden üye oldu', createdAt: old?.createdAt || now, updatedAt: now };
+  delete rec.id;
+  if (await safe(() => put('customers', id, rec), 'Üyeliğiniz oluşturuldu')) { setSession({ role: 'uye', id, name: rec.contact || rec.name }); $('#roleDlg').close(); }
+}
+async function loginTeam() {
+  const un = norm($('#lg_user').value.trim()); const pw = $('#lg_tpw').value;
+  const u = users().find(u => norm(u.username) === un);
+  if (!u || u.hash !== await userHash(u.username, pw)) return showErr('Kullanıcı adı veya şifre yanlış.');
+  setSession({ role: u.role, id: u.id, name: u.name }); $('#roleDlg').close(); closeCart();
+  tab = u.role === 'mudur' ? 'ozet' : 'yeni'; location.hash = '#yonetim'; openPanel(); toast('Hoş geldiniz, ' + u.name);
+}
+
+/* ---------- Panel ---------- */
+let tab = 'yeni';
+let newCat = 'mezeler', newQ = '';
+let offerFilter = { staff: '', status: '', q: '' };
+let custQ = '';
+function openPanel() { if (!isStaff()) { openRole('ekip'); return; } $('#panel').hidden = false; document.body.style.overflow = 'hidden'; renderPanel(); }
+function closePanel() { $('#panel').hidden = true; setTimeout(renderCart); document.body.style.overflow = ''; if (location.hash === '#yonetim') history.replaceState(null, '', '#menu'); }
+function myOffers() {
+  const all = store.cache.offers.slice().sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+  return isMgr() ? all : all.filter(o => o.by?.staffId === session.id);
+}
+function renderPanel() {
+  if ($('#panel').hidden) return;
+  const mgr = isMgr();
+  $('#pnTitle').textContent = (mgr ? 'Müdür paneli · ' : 'Personel paneli · ') + session.name;
+  const tabs = [...(mgr ? [['ozet', 'Özet']] : []), ['yeni', 'Yeni teklif'], ['teklifler', mgr ? 'Teklifler' : 'Tekliflerim'], ['musteriler', 'Müşteriler'], ...(mgr ? [['kuponlar', 'Kuponlar'], ['urunler', 'Ürün ekle'], ['personel', 'Kullanıcılar']] : [])];
+  if (!tabs.some(t => t[0] === tab)) tab = 'yeni';
+  $('#tabs').innerHTML = tabs.map(([k, l]) => `<button data-tab="${k}" class="${k === tab ? 'on' : ''}">${l}</button>`).join('');
+  const b = $('#pnBody');
+  if (tab === 'yeni') { if (!$('#pnNew')) b.innerHTML = newOfferView(); renderNewList(); renderCart(); }
+  else if (tab === 'ozet') b.innerHTML = summaryView();
+  else if (tab === 'teklifler') b.innerHTML = offersView();
+  else if (tab === 'musteriler') b.innerHTML = customersView();
+  else if (tab === 'kuponlar') b.innerHTML = couponsView();
+  else if (tab === 'urunler') b.innerHTML = productsView();
+  else if (tab === 'personel') b.innerHTML = staffView();
+  setSync($('#syncNote').textContent);
+}
+function newOfferView() {
+  return `<div class="nw" id="pnNew">
+    <div class="nw-menu">
+      <div class="filters"><input id="nw_q" type="search" placeholder="Menüde ürün ara" value="${esc(newQ)}" autocomplete="off"></div>
+      <div class="chips" id="nwCats"></div>
+      <div class="prows" id="nwList"></div>
+    </div>
+    <aside class="nw-cart box"><h3>Teklif sepeti</h3><div class="nw-body" id="pnCartBody"></div><div class="nw-foot" id="pnCartFoot"></div></aside>
+  </div>`;
+}
+function renderNewList() {
+  const list = $('#nwList'); if (!list) return;
+  const q = norm(newQ);
+  $('#nwCats').innerHTML = CATS.map(c => `<a href="#" data-act="nwCat" data-cat="${c.key}" class="${!q && c.key === newCat ? 'on' : ''}">${esc(c.label)}</a>`).join('');
+  const ps = allProducts().filter(p => q ? norm(p.name + ' ' + (p.brand || '')).includes(q) : p.cat === newCat);
+  const top = list.scrollTop;
+  list.innerHTML = ps.map(p => { const line = cart.find(l => l.id === p.id); return `<div class="prow${line ? ' in' : ''}" data-id="${esc(p.id)}">
+    ${p.img ? `<img src="${esc(p.img)}" alt="" loading="lazy">` : '<span class="ph"><span class="mono" style="font-size:18px">J</span></span>'}
+    <div class="pn"><b>${esc(p.name)}</b><small>${esc(detOf(p))}</small></div>
+    <div class="ft"><span class="price">${fmt(p.price)} <small>/ ${esc(unitOf(p))}</small></span>${ctrlHTML(p, line)}</div></div>`; }).join('') || '<p class="hint">Bu aramayla eşleşen ürün yok.</p>';
+  list.scrollTop = top;
+}
+function offersView() {
+  const mgr = isMgr();
+  let list = myOffers();
+  const all = list;
+  if (offerFilter.staff) list = list.filter(o => (o.by?.staffId || o.by?.role) === offerFilter.staff);
+  if (offerFilter.status) list = list.filter(o => o.status === offerFilter.status);
+  if (offerFilter.q) { const q = norm(offerFilter.q); list = list.filter(o => norm(o.no + ' ' + o.customer?.name + ' ' + o.customer?.contact + ' ' + o.by?.name).includes(q)); }
+  const ym = new Date().toISOString().slice(0, 7);
+  const month = all.filter(o => (o.createdAt || '').startsWith(ym));
+  const acc = all.filter(o => o.status === 'Kabul edildi');
+  const decided = all.filter(o => o.status === 'Kabul edildi' || o.status === 'Reddedildi').length;
+  const staff = users();
+  return `<div class="kpis">
+      <div class="kpi"><span>Toplam teklif</span><b>${all.length}</b></div>
+      <div class="kpi"><span>Bu ay teklif tutarı</span><b>${fmt(month.reduce((s, o) => s + (+o.total || 0), 0))}</b></div>
+      <div class="kpi"><span>Kabul edilen tutar</span><b>${fmt(acc.reduce((s, o) => s + (+o.total || 0), 0))}</b></div>
+      <div class="kpi"><span>Kabul oranı</span><b>${decided ? Math.round(acc.length / decided * 100) + '%' : '–'}</b></div>
+    </div>
+    <div class="filters">
+      <input id="of_q" type="search" placeholder="Teklif no, müşteri veya hazırlayan ara" value="${esc(offerFilter.q)}">
+      ${mgr ? `<select id="of_staff"><option value="">Tüm hazırlayanlar</option><option value="musteri"${offerFilter.staff === 'musteri' ? ' selected' : ''}>Müşterinin kendisi</option>${staff.map(s => `<option value="${esc(s.id)}"${offerFilter.staff === s.id ? ' selected' : ''}>${esc(s.name)} (${ROLE_TR[s.role]})</option>`).join('')}</select>` : ''}
+      <select id="of_status"><option value="">Tüm durumlar</option>${STATUSES.map(s => `<option${offerFilter.status === s ? ' selected' : ''}>${s}</option>`).join('')}</select>
+    </div>
+    ${list.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Teklif</th><th>Tarih</th><th>Müşteri</th><th>Hazırlayan</th><th class="r">Tutar</th><th>Durum</th></tr></thead><tbody>
+      ${list.map(o => `<tr><td><button class="link" style="color:var(--text);font-size:14px" data-open="${esc(o.id)}">${esc(o.no)}</button></td><td class="num">${esc(fmtShort(o.createdAt))}</td><td>${esc(o.customer?.name)}</td><td>${esc(o.by?.name)}</td><td class="r">${fmt(o.total)}${o.coupon ? `<br><span class="chip">${esc(o.coupon.code)}</span>` : ''}</td>
+      <td><select class="st" data-s="${esc(o.status)}" data-status="${esc(o.id)}" aria-label="Durum">${STATUSES.map(s => `<option${s === o.status ? ' selected' : ''}>${s}</option>`).join('')}</select></td></tr>`).join('')}
+    </tbody></table></div>` : `<p class="empty">${all.length ? 'Bu filtreyle eşleşen teklif yok.' : 'Henüz teklif yok. Menüden ürün seçip sepette “Teklifi oluştur” dediğinizde burada listelenir.'}</p>`}`;
+}
+function custStats(id) {
+  const os = store.cache.offers.filter(o => o.customerId === id);
+  const last = os.map(o => o.createdAt).sort().pop();
+  return { n: os.length, total: os.reduce((s, o) => s + (+o.total || 0), 0), acc: os.filter(o => o.status === 'Kabul edildi').reduce((s, o) => s + (+o.total || 0), 0), last, os };
+}
+function customersView() {
+  let list = store.cache.customers.slice().sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
+  if (custQ) { const q = norm(custQ); list = list.filter(c => norm([c.name, c.contact, c.phone, c.email, c.addr].join(' ')).includes(q)); }
+  return `<div class="filters"><input id="cu_q" type="search" placeholder="Müşteri ara: firma, yetkili, telefon" value="${esc(custQ)}"><button class="btn pri" style="flex:0 0 auto" data-act="newCust">+ Yeni müşteri</button></div>
+    ${list.length ? `<div class="cards2">${list.map(c => { const s = custStats(c.id); return `<button class="ccard" data-cust="${esc(c.id)}">
+      <h3>${esc(c.name)}${c.hash ? ' <span class="chip">Üye</span>' : ''}</h3><div class="meta">${esc([c.contact, c.phone, c.email].filter(Boolean).join(' · '))}</div>
+      <div class="nums"><span><b>${s.n}</b> teklif</span><span>Toplam <b>${fmt(s.total)}</b></span></div>
+      <div class="meta">${s.last ? 'Son teklif ' + esc(fmtShort(s.last)) : 'Teklif yok'} · ${esc(c.source || '')}</div></button>`; }).join('')}</div>`
+      : `<p class="empty">${custQ ? 'Aramayla eşleşen müşteri yok.' : 'Portföy boş. Teklif oluşturulduğunda müşteri otomatik kaydedilir; “+ Yeni müşteri” ile elle de ekleyebilirsiniz.'}</p>`}`;
+}
+function openCustomer(id) {
+  const c = id ? store.cache.customers.find(x => x.id === id) : {};
+  if (id && !c) return;
+  const s = id ? custStats(id) : { os: [] };
+  $('#custTitle').textContent = id ? c.name : 'Yeni müşteri';
+  $('#custBody').innerHTML = `<div class="split">
+    <form class="box" id="custForm" data-id="${esc(id || '')}">
+      <h3>Bilgiler</h3>
+      <div class="fields">
+        <div class="field full"><label for="e_name">Firma / ad soyad *</label><input id="e_name" value="${esc(c.name)}" required></div>
+        <div class="field"><label for="e_contact">Yetkili</label><input id="e_contact" value="${esc(c.contact)}"></div>
+        <div class="field"><label for="e_phone">Telefon *</label><input id="e_phone" value="${esc(c.phone)}" required></div>
+        <div class="field full"><label for="e_email">E-posta</label><input id="e_email" value="${esc(c.email)}"></div>
+        <div class="field full"><label for="e_addr">Adres</label><input id="e_addr" value="${esc(c.addr)}"></div>
+        <div class="field full"><label for="e_notes">Portföy notu</label><textarea id="e_notes" placeholder="Sektör, sipariş sıklığı, tercihleri…">${esc(c.notes)}</textarea></div>
+      </div>
+      <div class="acts"><button class="btn pri" type="submit">Kaydet</button>${id ? `<button class="btn" type="button" data-act="custToCart" data-id="${esc(id)}">Bu müşteriye teklif hazırla</button>` : ''}${id && isMgr() ? `<button class="btn danger" type="button" data-act="delCust" data-id="${esc(id)}">Sil</button>` : ''}</div>
+    </form>
+    <div class="box"><h3>Teklif geçmişi</h3>${id ? `<div class="nums" style="display:flex;gap:16px;font-size:14px"><span>${s.n} teklif</span><span>Toplam ${fmt(s.total)}</span><span style="color:var(--ok)">Kabul ${fmt(s.acc)}</span></div>` : ''}
+      ${s.os.length ? `<div class="tbl-wrap"><table class="tbl" style="min-width:480px"><tbody>${s.os.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')).map(o => `<tr><td><button class="link" style="color:var(--text);font-size:14px" data-open="${esc(o.id)}">${esc(o.no)}</button></td><td class="num">${esc(fmtShort(o.createdAt))}</td><td>${esc(o.by?.name)}</td><td class="r">${fmt(o.total)}</td><td><span class="st" data-s="${esc(o.status)}">${esc(o.status)}</span></td></tr>`).join('')}</tbody></table></div>` : '<p class="hint">Bu müşteri için henüz teklif yok.</p>'}
+    </div></div>`;
+  const dlg = $('#custDlg'); if (!dlg.open) dlg.showModal();
+}
+function couponsView() {
+  const list = store.cache.coupons.slice().sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+  const used = code => store.cache.offers.filter(o => o.coupon?.code === code).length;
+  return `<div class="split">
+    <form class="box" id="cpForm"><h3>Yeni kupon</h3>
+      <div class="fields">
+        <div class="field full"><label for="cp_code">Kod *</label><input id="cp_code" placeholder="ör. BAYRAM15" style="text-transform:uppercase" required></div>
+        <div class="field"><label for="cp_type">İndirim türü</label><select id="cp_type"><option value="yuzde">Yüzde (%)</option><option value="tutar">Tutar (₺)</option></select></div>
+        <div class="field"><label for="cp_value">Değer *</label><input id="cp_value" type="number" min="0" step="any" required></div>
+        <div class="field"><label for="cp_min">En az sepet (₺)</label><input id="cp_min" type="number" min="0" step="any"></div>
+        <div class="field"><label for="cp_exp">Son geçerlilik</label><input id="cp_exp" type="date"></div>
+        <div class="field full"><label for="cp_note">Not</label><input id="cp_note" placeholder="Kime verildi, hangi kampanya"></div>
+      </div><p class="msg bad" id="cpErr" hidden></p><button class="btn pri" type="submit">Kuponu oluştur</button></form>
+    <div class="box"><h3>Kuponlar</h3>${list.length ? `<div class="tbl-wrap"><table class="tbl" style="min-width:560px"><thead><tr><th>Kod</th><th>İndirim</th><th>Koşul</th><th class="r">Kullanım</th><th>Durum</th><th></th></tr></thead><tbody>
+      ${list.map(c => { const exp = c.expires && new Date(c.expires + 'T23:59:59') < new Date(); return `<tr><td><b>${esc(c.code)}</b>${c.note ? `<br><span class="hint">${esc(c.note)}</span>` : ''}</td><td>${c.type === 'tutar' ? fmt(c.value) : '%' + esc(c.value)}</td><td class="hint">${c.min ? 'En az ' + fmt(c.min) : 'Koşulsuz'}${c.expires ? '<br>Son gün ' + esc(fmtShort(c.expires + 'T12:00')) : ''}</td><td class="r">${used(c.code)}</td>
+        <td>${exp ? '<span class="st" data-s="Reddedildi">Süresi doldu</span>' : `<button class="st" data-s="${c.active === false ? 'Gönderildi' : 'Kabul edildi'}" data-act="toggleCp" data-id="${esc(c.id)}">${c.active === false ? 'Kapalı' : 'Aktif'}</button>`}</td>
+        <td><button class="link" data-act="delCp" data-id="${esc(c.id)}">Sil</button></td></tr>`; }).join('')}</tbody></table></div>` : '<p class="hint">Henüz kupon yok. Soldaki formla ilk kuponu oluşturun; müşteri sepette bu kodu girince indirim uygulanır.</p>'}</div></div>`;
+}
+function productsView() {
+  const list = store.cache.products;
+  return `<div class="split">
+    <form class="box" id="prForm"><h3>Menüye ürün ekle</h3>
+      <div class="fields">
+        <div class="field full"><label for="pr_name">Ürün adı *</label><input id="pr_name" required></div>
+        <div class="field"><label for="pr_cat">Kategori</label><select id="pr_cat">${CATS.map(c => `<option value="${c.key}">${c.label}</option>`).join('')}</select></div>
+        <div class="field"><label for="pr_unit">Birim</label><select id="pr_unit"><option>kg</option><option>adet</option><option>kutu</option><option>koli</option><option>porsiyon</option></select></div>
+        <div class="field"><label for="pr_price">Fiyat (₺) *</label><input id="pr_price" type="number" min="0" step="any" required></div>
+        <div class="field"><label for="pr_img">Fotoğraf</label><input id="pr_img" type="file" accept="image/*"></div>
+        <div class="field full"><label for="pr_det">Detay</label><input id="pr_det" placeholder="ör. Raf ömrü: 4 gün · Kutu içi: 12 adet"></div>
+      </div><p class="msg bad" id="prErr" hidden></p><button class="btn pri" type="submit">Ürünü ekle</button></form>
+    <div class="box"><h3>Eklenen ürünler</h3>${list.length ? `<div class="lines">${list.map(p => `<div class="line">${p.img ? `<img src="${esc(p.img)}" alt="">` : `<div class="ph"><span class="mono">J</span></div>`}<div style="min-width:0"><div class="nm">${esc(p.name)}</div><div class="sub">${esc(CATS.find(c => c.key === p.cat)?.label)} · ${fmt(p.price)} / ${esc(p.unit)}</div></div><div class="rt"><button class="link" data-act="delPr" data-id="${esc(p.id)}">Kaldır</button></div></div>`).join('')}</div>` : '<p class="hint">Fiyat listesindeki ürünler menüde hazır. Listede olmayan yeni ürünleri buradan eklediğinizde menüde “Yeni ürün” etiketiyle görünür.</p>'}</div></div>`;
+}
+function summaryView() {
+  const all = store.cache.offers.slice().sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+  const sum = os => os.reduce((s, o) => s + (+o.total || 0), 0);
+  const ym = new Date().toISOString().slice(0, 7);
+  const month = all.filter(o => (o.createdAt || '').startsWith(ym));
+  const open = all.filter(o => o.status === 'Yeni' || o.status === 'Gönderildi');
+  const acc = all.filter(o => o.status === 'Kabul edildi');
+  const decided = acc.length + all.filter(o => o.status === 'Reddedildi').length;
+  const members = store.cache.customers.filter(c => c.hash).sort((a, b) => (b.memberSince || '').localeCompare(a.memberSince || ''));
+  const who = [...users().map(u => ({ key: u.id, name: u.name, role: ROLE_TR[u.role] })), { key: 'musteri', name: 'Müşterinin kendisi', role: 'Site' }]
+    .map(w => { const os = all.filter(o => (o.by?.staffId || o.by?.role) === w.key); return { ...w, n: os.length, total: sum(os), acc: sum(os.filter(o => o.status === 'Kabul edildi')) }; });
+  const prod = {};
+  for (const o of all) for (const i of o.items || []) { const x = prod[i.id] ||= { name: i.name, n: 0, total: 0 }; x.n++; x.total += (+i.price || 0) * (+i.qty || 0); }
+  const top = Object.values(prod).sort((a, b) => b.n - a.n || b.total - a.total).slice(0, 6);
+  const goOffers = k => `data-act="ofGo" data-k="${k}"`;
+  return `<div class="kpis">
+      <div class="kpi"><span>Bu ay teklif</span><b>${month.length} · ${fmt(sum(month))}</b></div>
+      <button class="kpi" ${goOffers('bekleyen')}><span>Cevap bekleyen</span><b>${open.length} · ${fmt(sum(open))}</b></button>
+      <div class="kpi"><span>Kabul edilen tutar</span><b>${fmt(sum(acc))}</b></div>
+      <div class="kpi"><span>Kabul oranı</span><b>${decided ? Math.round(acc.length / decided * 100) + '%' : '–'}</b></div>
+      <button class="kpi" data-tab="musteriler"><span>Müşteri · üye</span><b>${store.cache.customers.length} · ${members.length}</b></button>
+    </div>
+    <div class="ozet">
+      <div class="box"><h3>Ekip performansı</h3><div class="tbl-wrap"><table class="tbl" style="min-width:420px"><thead><tr><th>Hazırlayan</th><th class="r">Teklif</th><th class="r">Toplam</th><th class="r">Kabul</th></tr></thead><tbody>
+        ${who.map(w => `<tr><td><button class="link" style="color:var(--text);font-size:14px" ${goOffers(esc(w.key))}>${esc(w.name)}</button> <span class="hint">${esc(w.role)}</span></td><td class="r num">${w.n}</td><td class="r">${fmt(w.total)}</td><td class="r" style="color:var(--ok)">${fmt(w.acc)}</td></tr>`).join('')}
+      </tbody></table></div></div>
+      <div class="box"><h3>Son teklifler</h3>${all.length ? `<div class="tbl-wrap"><table class="tbl" style="min-width:520px"><tbody>${all.slice(0, 8).map(o => `<tr><td><button class="link" style="color:var(--text);font-size:14px" data-open="${esc(o.id)}">${esc(o.no)}</button></td><td class="num">${esc(fmtShort(o.createdAt))}</td><td>${esc(o.customer?.name)}</td><td>${esc(o.by?.name)}</td><td class="r">${fmt(o.total)}</td><td><span class="st" data-s="${esc(o.status)}">${esc(o.status)}</span></td></tr>`).join('')}</tbody></table></div>` : '<p class="hint">Henüz teklif yok.</p>'}</div>
+      <div class="split">
+      <div class="box"><h3>En çok teklif edilen ürünler</h3>${top.length ? `<div class="tbl-wrap"><table class="tbl" style="min-width:0"><tbody>${top.map(p => `<tr><td>${esc(p.name)}</td><td class="r num">${p.n} teklif</td><td class="r">${fmt(p.total)}</td></tr>`).join('')}</tbody></table></div>` : '<p class="hint">Teklif geldikçe burada listelenir.</p>'}</div>
+      <div class="box"><h3>Yeni üyeler</h3>${members.length ? `<div class="tbl-wrap"><table class="tbl" style="min-width:320px"><tbody>${members.slice(0, 6).map(c => `<tr><td><button class="link" style="color:var(--text);font-size:14px" data-cust="${esc(c.id)}">${esc(c.name)}</button></td><td>${esc(c.phone)}</td><td class="num">${esc(fmtShort(c.memberSince))}</td></tr>`).join('')}</tbody></table></div>` : '<p class="hint">Siteden üye olan müşteriler burada görünür.</p>'}</div>
+      </div>
+    </div>`;
+}
+function staffView() {
+  const us = users();
+  const cnt = id => store.cache.offers.filter(o => o.by?.staffId === id).length;
+  return `<div class="split">
+    <form class="box" id="stForm"><h3>Kullanıcı ekle</h3><div class="fields">
+      <div class="field full"><label for="st_name">Ad soyad *</label><input id="st_name" required></div>
+      <div class="field"><label for="st_user">Kullanıcı adı *</label><input id="st_user" autocapitalize="none" autocomplete="off" required></div>
+      <div class="field"><label for="st_pw">Şifre *</label><input id="st_pw" autocomplete="new-password" required></div>
+      <div class="field full"><label for="st_role">Yetki</label><select id="st_role"><option value="personel">Personel: teklif hazırlar, kendi tekliflerini görür</option><option value="mudur">Müdür: her şeyi görür ve yönetir</option></select></div>
+    </div><p class="msg bad" id="stErr" hidden></p><button class="btn pri" type="submit">Ekle</button></form>
+    <div class="box"><h3>Ekip</h3><div class="tbl-wrap"><table class="tbl" style="min-width:520px"><thead><tr><th>Ad</th><th>Kullanıcı adı</th><th>Yetki</th><th class="r">Teklif</th><th></th></tr></thead><tbody>${us.map(u => `<tr><td>${esc(u.name)}${u.id === session.id ? ' <span class="hint">(siz)</span>' : ''}</td><td class="num">${esc(u.username)}</td><td>${ROLE_TR[u.role]}</td><td class="r">${cnt(u.id)}</td>
+      <td class="r" style="white-space:nowrap"><button class="link" data-act="pwUser" data-id="${esc(u.id)}">Şifre değiştir</button>${u.id !== session.id ? ` · <button class="link" data-act="delUser" data-id="${esc(u.id)}">Kaldır</button>` : ''}</td></tr>`).join('')}</tbody></table></div>
+      <form id="pwForm" class="fields" hidden style="margin-top:12px"><div class="field"><label for="pw_new" id="pwLbl">Yeni şifre</label><input id="pw_new" autocomplete="new-password"></div><div class="field" style="align-self:end"><button class="btn pri" type="submit">Şifreyi kaydet</button></div></form>
+    </div>
+    <form class="box" id="setForm"><h3>Ayarlar</h3><div class="fields"><div class="field"><label for="set_days">Teklif geçerlilik (gün)</label><input id="set_days" type="number" min="1" value="${esc(store.settings.validDays)}"></div></div><button class="btn" type="submit">Ayarları kaydet</button></form>
+  </div>`;
+}
+function resizeImage(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => { const im = new Image(); im.onload = () => {
+      const s = Math.min(1, 480 / im.width); const c = document.createElement('canvas');
+      c.width = Math.round(im.width * s); c.height = Math.round(im.height * s);
+      c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); res(c.toDataURL('image/jpeg', .78));
+    }; im.onerror = rej; im.src = r.result; };
+    r.onerror = rej; r.readAsDataURL(file);
+  });
+}
+
+/* ---------- Olaylar ---------- */
+document.addEventListener('click', async e => {
+  const t = e.target.closest('[data-act],[data-pick],[data-tab],[data-open],[data-cust],[data-prod]');
+  if (!t) { const pc = e.target.closest('.pcard, .prow'); if (pc && !e.target.closest('input')) openProduct(pc.dataset.id); return; }
+  if (t.dataset.prod) { openProduct(t.dataset.prod); return; }
+  const id = t.dataset.id;
+  if (t.dataset.pick) { pickRole = t.dataset.pick; renderRoleForm(); $('#roleForm input')?.focus(); return; }
+  if (t.dataset.tab) { tab = t.dataset.tab; renderPanel(); if (tab !== 'yeni') renderCart(); return; }
+  if (t.dataset.open) { const o = store.cache.offers.find(x => x.id === t.dataset.open); if (o) { $('#custDlg').open && $('#custDlg').close(); $('#roleDlg').open && $('#roleDlg').close(); openOffer(o); } return; }
+  if (t.dataset.cust) { openCustomer(t.dataset.cust); return; }
+  switch (t.dataset.act) {
+    case 'add': setQty(id, 1); toast('Sepete eklendi'); break;
+    case 'inc': { const l = cart.find(l => l.id === id); setQty(id, (l?.qty || 0) + 1); break; }
+    case 'dec': { const l = cart.find(l => l.id === id); setQty(id, (l?.qty || 0) - 1); break; }
+    case 'rm': setQty(id, 0); break;
+    case 'cart': openCart(); break;
+    case 'sfSize': sofra.kg = +t.dataset.kg; saveSofra(); renderSofra(); break;
+    case 'sfToggle': { const i = sofra.sel.indexOf(id); if (i >= 0) sofra.sel.splice(i, 1); else sofra.sel.push(id); saveSofra(); renderSofra(); break; }
+    case 'sfClear': sofra.sel = []; saveSofra(); renderSofra(); break;
+    case 'sfAdd': {
+      const n = sofra.sel.length;
+      for (const sid of sofra.sel) { const l = cart.find(l => l.id === sid); if (l) l.qty = Math.round((l.qty + sofra.kg) * 100) / 100; else cart.push({ id: sid, qty: sofra.kg }); }
+      sofra.sel.forEach(refreshCard); sofra.sel = []; saveSofra(); saveCart(); renderCart(); renderSofra(); toast(n + ' meze sepete eklendi'); break;
+    }
+    case 'nwCat': e.preventDefault(); newCat = t.dataset.cat; newQ = ''; $('#nw_q').value = ''; renderNewList(); $('#nwList').scrollTop = 0; break;
+    case 'cartFromProd': $('#prodDlg').close(); openCart(); break;
+    case 'closeCart': closeCart(); break;
+    case 'applyCoupon': couponCode = $('#coupon').value.trim().toUpperCase(); saveCart(); renderCart(); break;
+    case 'clearCoupon': couponCode = ''; saveCart(); renderCart(); break;
+    case 'makeOffer': makeOffer(); break;
+    case 'pdf': downloadPdf(); break;
+    case 'reorder': {
+      const o = currentOffer; cart = o.items.filter(i => byId(i.id)).map(i => ({ id: i.id, qty: i.qty }));
+      couponCode = o.coupon?.code || ''; custDraft = { ...o.customer, note: o.note || '' }; pickedCustomer = isStaff() ? o.customerId : null;
+      saveCart(); ls.set('judiva.custDraft', custDraft); $('#offerDlg').close(); closePanel(); renderMenu(); openCart(); break;
+    }
+    case 'closeDlg': t.closest('dialog').close(); break;
+    case 'openLogin': openRole(t.dataset.to); break;
+    case 'logout': setSession({ role: 'misafir' }); $('#roleDlg').close(); closePanel(); toast('Çıkış yapıldı'); break;
+    case 'goPanel': $('#roleDlg').close(); location.hash = '#yonetim'; openPanel(); break;
+    case 'ofGo': offerFilter = { staff: '', status: '', q: '' }; if (t.dataset.k === 'bekleyen') offerFilter.status = 'Yeni'; else offerFilter.staff = t.dataset.k; tab = 'teklifler'; renderPanel(); break;
+    case 'pwUser': { const u = users().find(x => x.id === id); const f = $('#pwForm'); f.hidden = false; f.dataset.id = id; $('#pwLbl').textContent = u.name + ' için yeni şifre'; $('#pw_new').value = ''; $('#pw_new').focus(); break; }
+    case 'closePanel': closePanel(); break;
+    case 'newCust': openCustomer(null); break;
+    case 'custToCart': {
+      const c = store.cache.customers.find(x => x.id === id); pickedCustomer = id;
+      custDraft = { name: c.name, contact: c.contact, phone: c.phone, email: c.email, addr: c.addr, note: '' }; ls.set('judiva.custDraft', custDraft);
+      $('#custDlg').close(); closePanel(); toast(c.name + ' için ürün seçin'); location.hash = '#menu'; break;
+    }
+    case 'delCust':
+      if (t.dataset.sure) { await safe(() => del('customers', id), 'Müşteri silindi'); $('#custDlg').close(); }
+      else { t.dataset.sure = '1'; t.textContent = 'Silmek için tekrar dokunun'; }
+      break;
+    case 'toggleCp': { const c = store.cache.coupons.find(x => x.id === id); await safe(() => patch('coupons', id, { active: c.active === false }), c.active === false ? 'Kupon açıldı' : 'Kupon kapatıldı'); break; }
+    case 'delCp':
+      if (t.dataset.sure) await safe(() => del('coupons', id), 'Kupon silindi');
+      else { t.dataset.sure = '1'; t.textContent = 'Emin misiniz?'; }
+      break;
+    case 'delPr':
+      if (t.dataset.sure) { await safe(() => del('products', id), 'Ürün kaldırıldı'); setQty(id, 0); }
+      else { t.dataset.sure = '1'; t.textContent = 'Emin misiniz?'; }
+      break;
+    case 'delUser': {
+      const rest = users().filter(u => u.id !== id);
+      if (!rest.some(u => u.role === 'mudur')) { toast('En az bir müdür kalmalı.'); break; }
+      if (t.dataset.sure) await safe(() => putSettings({ users: rest }), 'Kullanıcı kaldırıldı');
+      else { t.dataset.sure = '1'; t.textContent = 'Emin misiniz?'; }
+      break;
+    }
+  }
+});
+document.addEventListener('change', async e => {
+  const t = e.target;
+  if (t.dataset.qty) setQty(t.dataset.qty, t.value);
+  if (t.dataset.status) {
+    const ok = await safe(() => patch('offers', t.dataset.status, { status: t.value }), 'Durum güncellendi');
+    if (ok && currentOffer?.id === t.dataset.status) { currentOffer = { ...currentOffer, status: t.value }; t.dataset.s = t.value; $('#docFit').innerHTML = docHTML(currentOffer); fitDoc(); }
+  }
+  if (t.id === 'pickCust') {
+    pickedCustomer = t.value || null;
+    const c = store.cache.customers.find(x => x.id === t.value);
+    custDraft = c ? { name: c.name, contact: c.contact, phone: c.phone, email: c.email, addr: c.addr, note: custDraft.note || '' } : { note: custDraft.note || '' };
+    ls.set('judiva.custDraft', custDraft); renderCart();
+  }
+  if (t.id === 'of_staff') { offerFilter.staff = t.value; renderPanel(); }
+  if (t.id === 'of_status') { offerFilter.status = t.value; renderPanel(); }
+});
+document.addEventListener('input', e => {
+  const t = e.target;
+  if (t.id === 'nw_q') { newQ = t.value; renderNewList(); }
+  if (t.id === 'sfQ') { sofraQ = t.value; renderSofraTiles(); }
+  if (t.id === 'q') { clearTimeout(renderMenu.t); renderMenu.t = setTimeout(renderMenu, 160); }
+  if (t.id?.startsWith('c_')) readCustForm();
+  if (t.id === 'of_q') { offerFilter.q = t.value; clearTimeout(renderPanel.t); renderPanel.t = setTimeout(() => { renderPanel(); const el = $('#of_q'); el.focus(); el.setSelectionRange(el.value.length, el.value.length); }, 250); }
+  if (t.id === 'cu_q') { custQ = t.value; clearTimeout(renderPanel.t); renderPanel.t = setTimeout(() => { renderPanel(); const el = $('#cu_q'); el.focus(); el.setSelectionRange(el.value.length, el.value.length); }, 250); }
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.target.id === 'coupon') { e.preventDefault(); $('[data-act="applyCoupon"]').click(); }
+  if (e.key === 'Escape' && $('#drawer').classList.contains('open')) closeCart();
+});
+document.addEventListener('submit', async e => {
+  e.preventDefault();
+  const f = e.target; const v = id => ($('#' + id)?.value || '').trim();
+  if (f.id === 'custForm') {
+    const id = f.dataset.id || uid('m_'); const old = store.cache.customers.find(c => c.id === id) || {};
+    if (!v('e_name') || !v('e_phone')) { toast('Firma / ad soyad ve telefon gerekli.'); return; }
+    const rec = { ...old, name: v('e_name'), contact: v('e_contact'), phone: v('e_phone'), email: v('e_email'), addr: v('e_addr'), notes: v('e_notes'),
+      source: old.source || 'Elle eklendi: ' + session.name, createdAt: old.createdAt || new Date().toISOString(), updatedAt: new Date().toISOString() };
+    delete rec.id;
+    if (await safe(() => put('customers', id, rec), 'Müşteri kaydedildi')) openCustomer(id);
+  }
+  if (f.id === 'cpForm') {
+    const code = v('cp_code').toUpperCase().replace(/\s+/g, ''); const val = +v('cp_value'); const err = $('#cpErr');
+    if (!code || !(val > 0)) { err.textContent = 'Kod ve sıfırdan büyük bir indirim değeri girin.'; err.hidden = false; return; }
+    if ($('#cp_type').value === 'yuzde' && val > 100) { err.textContent = 'Yüzde indirim 100’den büyük olamaz.'; err.hidden = false; return; }
+    if (store.cache.coupons.some(c => String(c.code).toUpperCase() === code)) { err.textContent = 'Bu kod zaten var. Başka bir kod seçin.'; err.hidden = false; return; }
+    const id = 'k_' + code.replace(/[^A-Z0-9]/gi, '').toLowerCase() + '_' + Date.now().toString(36);
+    await safe(() => put('coupons', id, { code, type: $('#cp_type').value, value: val, min: +v('cp_min') || 0, expires: v('cp_exp') || null, note: v('cp_note'), active: true, createdAt: new Date().toISOString() }), 'Kupon oluşturuldu: ' + code);
+  }
+  if (f.id === 'prForm') {
+    const err = $('#prErr'); const price = +v('pr_price');
+    if (!v('pr_name') || !(price > 0)) { err.textContent = 'Ürün adı ve fiyat gerekli.'; err.hidden = false; return; }
+    let img = null; const file = $('#pr_img').files[0];
+    if (file) { try { img = await resizeImage(file); } catch { err.textContent = 'Fotoğraf okunamadı. JPG veya PNG deneyin.'; err.hidden = false; return; } }
+    const det = v('pr_det');
+    const d = det ? det.split('·').map(s => s.split(':')).map(([a, b]) => b !== undefined ? [a.trim(), b.trim()] : ['Not', a.trim()]) : [];
+    await safe(() => put('products', uid('c_'), { name: v('pr_name'), cat: $('#pr_cat').value, unit: $('#pr_unit').value, price, img, d, createdAt: new Date().toISOString() }), 'Ürün menüye eklendi');
+  }
+  if (f.id === 'lgCust') loginCustomer();
+  if (f.id === 'lgReg') registerCustomer();
+  if (f.id === 'lgTeam') loginTeam();
+  if (f.id === 'stForm') {
+    const err = $('#stErr'); const un = norm(v('st_user')).replace(/\s+/g, '');
+    if (!v('st_name') || !un || !v('st_pw')) { err.textContent = 'Ad, kullanıcı adı ve şifre gerekli.'; err.hidden = false; return; }
+    if ($('#st_pw').value.length < 4) { err.textContent = 'Şifre en az 4 karakter olmalı.'; err.hidden = false; return; }
+    if (users().some(u => norm(u.username) === un)) { err.textContent = 'Bu kullanıcı adı alınmış.'; err.hidden = false; return; }
+    const role = $('#st_role').value;
+    await safe(async () => putSettings({ users: [...users(), { id: uid(role === 'mudur' ? 'u_' : 'p_'), name: v('st_name'), username: un, role, hash: await userHash(un, $('#st_pw').value) }] }), 'Kullanıcı eklendi: ' + un);
+  }
+  if (f.id === 'pwForm') {
+    const pw = $('#pw_new').value; const u = users().find(x => x.id === f.dataset.id);
+    if (!u || pw.length < 4) { toast('Şifre en az 4 karakter olmalı.'); return; }
+    const h = await userHash(u.username, pw);
+    await safe(() => putSettings({ users: users().map(x => x.id === u.id ? { ...x, hash: h } : x) }), u.name + ' için şifre değişti');
+  }
+  if (f.id === 'setForm') await safe(() => putSettings({ validDays: Math.max(1, +v('set_days') || 15) }), 'Ayarlar kaydedildi');
+});
+$('#roleBtn').addEventListener('click', () => openRole());
+$('#panelBtn').addEventListener('click', () => { location.hash = '#yonetim'; openPanel(); });
+$('#scrim').addEventListener('click', closeCart);
+addEventListener('hashchange', () => {
+  if (location.hash.startsWith('#urun-')) { openProduct(location.hash.slice(6)); return; }
+  if (location.hash === '#yonetim') openPanel(); else if (!$('#panel').hidden) closePanel();
+});
+
+/* chip vurgusu */
+const io = new IntersectionObserver(es => es.forEach(en => { if (en.isIntersecting) $$('#chips a').forEach(a => a.classList.toggle('on', a.getAttribute('href') === '#' + en.target.id)); }), { rootMargin: '-40% 0px -55% 0px' });
+function observeChapters() { io.disconnect(); $$('.chapter').forEach(s => io.observe(s)); }
+
+let lastSig = '';
+function renderAll() {
+  const sig = JSON.stringify(store.cache.products.map(p => p.id + p.price + p.name));
+  if (sig !== lastSig) { lastSig = sig; renderMenu(); }
+  checkSession(); renderRole();
+  if (!document.activeElement?.closest('#drawer, #pnCartBody, #pnCartFoot')) renderCart();
+  renderPanel();
+  if ($('#roleDlg').open && !document.activeElement?.closest('#roleForm')) renderRoleForm();
+  if ($('#custDlg').open) { const f = $('#custForm'); if (f?.dataset.id && document.activeElement?.closest('#custForm') == null) openCustomer(f.dataset.id); }
+}
+
+buildHero();
+renderMenu(); renderRole(); renderCart();
+initStore();
+if (location.hash === '#yonetim') setTimeout(openPanel, 300);
+if (location.hash.startsWith('#urun-')) setTimeout(() => openProduct(location.hash.slice(6)), 300);
+</script>
+
+</html>
