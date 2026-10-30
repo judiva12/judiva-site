@@ -568,7 +568,7 @@ function byId(id) { return allProducts().find(p => p.id === String(id)); }
 const COLS = ['offers', 'customers', 'coupons', 'products'];
 const store = {
   db: null, shared: false, ready: false,
-  cache: { offers: [], customers: [], coupons: [], products: [] },
+  cache: { offers: [], customers: [], coupons: [], products: [], team: [] },
   settings: { ...DEFAULT_SETTINGS },
 };
 function onStore() { renderAll(); }
@@ -577,9 +577,58 @@ function loadLocal() {
   store.settings = { ...DEFAULT_SETTINGS, ...ls.get('judiva.settings', {}) };
 }
 function saveLocal(c) { ls.set('judiva.' + c, store.cache[c]); }
+/* Kendi alan adında: Supabase (gerçek giriş ve ortak kayıt). Ayarları GitHub yayınında doldurulur. */
+const SB_CONF = /*SUPABASE*/null;
+const SB_MAIL = { ekip: '@ekip.judiva.com.tr', uye: '@uye.judiva.com.tr' };
+function loadScript(src) { return new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = rej; document.head.appendChild(s); }); }
+// Supabase satırı → sitenin kullandığı kayıt. Müşteride `hash` üyelik işaretidir (yerel modda şifre özeti).
+function sbRow(c, r) { const x = { ...r.data, id: r.id }; if (c === 'customers') { delete x.hash; if (r.auth_id) { x.hash = 'uye'; x.authId = r.auth_id; } } return x; }
+async function sbLoad(c) {
+  if (c === 'team') {
+    const { data, error } = await store.sb.from('team').select('id, username, name, role, auth_id, temp_pw');
+    store.cache.team = error ? [] : data.map(t => ({ id: t.id, username: t.username, name: t.name, role: t.role, authId: t.auth_id, claimed: !!t.auth_id, tempPw: t.temp_pw }));
+    return;
+  }
+  if (c === 'settings') { const { data } = await store.sb.from('settings').select('data').eq('id', 'main').maybeSingle(); store.settings = { ...DEFAULT_SETTINGS, users: [], ...(data?.data || {}) }; return; }
+  const { data, error } = await store.sb.from(c).select(c === 'customers' ? 'id, data, auth_id' : 'id, data');
+  if (error) { setSync('Kayıtlar okunamadı. Sayfayı yenileyin.'); return; }
+  store.cache[c] = data.map(r => sbRow(c, r));
+}
+async function sbLoadAll() { await Promise.all([...COLS, 'team', 'settings'].map(sbLoad)); store.ready = true; onStore(); }
+// Giriş yapan Supabase kullanıcısından site oturumunu kur
+async function sbAdopt(user) {
+  if (!user) { if (session.role !== 'misafir') setSession({ role: 'misafir' }); return; }
+  const email = user.email || '';
+  if (email.endsWith(SB_MAIL.ekip)) {
+    const t = store.cache.team.find(t => t.authId === user.id);
+    if (t) { if (session.id !== t.id || session.role !== t.role) setSession({ role: t.role, id: t.id, name: t.name }); return; }
+  } else if (email.endsWith(SB_MAIL.uye)) {
+    const c = store.cache.customers.find(c => c.authId === user.id);
+    if (c) { if (session.id !== c.id) setSession({ role: 'uye', id: c.id, name: c.contact || c.name }); return; }
+  }
+  if (session.role !== 'misafir') setSession({ role: 'misafir' });
+}
+async function initSupabase() {
+  await loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js');
+  const sb = window.supabase.createClient(SB_CONF.url, SB_CONF.key, { auth: { persistSession: true, storageKey: 'judiva.auth' } });
+  store.sb = sb; store.shared = true;
+  const { data: { session: s } } = await sb.auth.getSession();
+  await sbLoadAll(); await sbAdopt(s?.user);
+  sb.auth.onAuthStateChange((ev, s2) => { if (ev === 'SIGNED_OUT' || ev === 'SIGNED_IN') setTimeout(async () => { await sbLoadAll(); await sbAdopt(s2?.user); renderAll(); }); });
+  // Başka cihazlardaki değişiklikler: ilgili tabloyu yeniden oku
+  const t = {};
+  sb.channel('judiva').on('postgres_changes', { event: '*', schema: 'public' }, e => {
+    const c = e.table; clearTimeout(t[c]); t[c] = setTimeout(async () => { await sbLoad(c); onStore(); }, 300);
+  }).subscribe();
+  setSync('Kayıtlar Judiva veritabanında: personel ve müdür aynı teklifleri görür.');
+}
 async function initStore() {
   let db = null;
   try { db = window.claude?.use ? await window.claude.use('db') : null; } catch { db = null; }
+  if (!db && SB_CONF?.url) {
+    try { await initSupabase(); return; }
+    catch { store.sb = null; store.shared = false; setSync('Veritabanına bağlanılamadı. İnternet bağlantınızı kontrol edip sayfayı yenileyin.'); }
+  }
   if (db) {
     store.db = db; store.shared = true;
     for (const c of COLS) {
@@ -600,23 +649,34 @@ async function initStore() {
   }
 }
 function setSync(t) { $('#syncNote').textContent = t; $('#pnSync').textContent = store.shared ? 'Paylaşımlı kayıt' : 'Bu cihazda kayıt'; }
+async function sbWrite(q) { const { error } = await q; if (error) throw new Error(sbErr(error)); }
+function sbErr(e) { const m = e?.message || ''; return /row-level security|permission denied/i.test(m) ? 'Bu işlem için yetkiniz yok.' : m; }
 async function put(c, id, data) {
+  if (store.sb) {
+    const d = { ...data }; delete d.id; if (c === 'customers') { delete d.hash; delete d.authId; }
+    const exists = store.cache[c].some(x => x.id === id);
+    await sbWrite(exists ? store.sb.from(c).update({ data: d }).eq('id', id) : store.sb.from(c).insert({ id, data: d }));
+    await sbLoad(c); onStore(); return;
+  }
   if (store.db) return store.db.collection(c).doc(id).set(data);
   const arr = store.cache[c]; const i = arr.findIndex(x => x.id === id);
   if (i >= 0) arr[i] = { ...data, id }; else arr.push({ ...data, id });
   saveLocal(c); onStore();
 }
 async function patch(c, id, data) {
+  if (store.sb) { const old = store.cache[c].find(x => x.id === id); if (old) return put(c, id, { ...old, ...data }); return; }
   if (store.db) return store.db.collection(c).doc(id).update(data);
   const x = store.cache[c].find(x => x.id === id); if (x) Object.assign(x, data);
   saveLocal(c); onStore();
 }
 async function del(c, id) {
+  if (store.sb) { await sbWrite(store.sb.from(c).delete().eq('id', id)); await sbLoad(c); onStore(); return; }
   if (store.db) return store.db.collection(c).doc(id).delete();
   store.cache[c] = store.cache[c].filter(x => x.id !== id); saveLocal(c); onStore();
 }
 async function putSettings(data) {
   const next = { ...store.settings, ...data };
+  if (store.sb) { delete next.users; await sbWrite(store.sb.from('settings').upsert({ id: 'main', data: next })); await sbLoad('settings'); onStore(); return; }
   if (store.db) return store.db.doc('settings/main').set(next);
   store.settings = next; ls.set('judiva.settings', next); onStore();
 }
@@ -632,7 +692,7 @@ if (!['misafir', 'uye', 'personel', 'mudur'].includes(session.role) || (session.
 function setSession(s) { session = s; ls.set('judiva.session', s); custDraft = {}; pickedCustomer = null; ls.set('judiva.custDraft', custDraft); renderRole(); renderCart(); }
 function isStaff() { return session.role === 'personel' || session.role === 'mudur'; }
 function isMgr() { return session.role === 'mudur'; }
-function users() { return store.settings.users || []; }
+function users() { return store.sb ? store.cache.team : (store.settings.users || []); }
 function me() { return isStaff() ? users().find(u => u.id === session.id) : session.role === 'uye' ? store.cache.customers.find(c => c.id === session.id) : null; }
 async function sha(t) { const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t)); return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2, '0')).join(''); }
 const userHash = (username, pw) => sha('judiva:' + username + ':' + pw);
@@ -645,7 +705,7 @@ function renderRole() {
 }
 // Kullanıcı silinirse ya da müşteri kaydı kaldırılırsa oturumu kapat
 function checkSession() {
-  if (!store.ready || session.role === 'misafir') return;
+  if (!store.ready || session.role === 'misafir' || store.sb) return;
   if (isStaff() ? !users().some(u => u.id === session.id && u.role === session.role) : !store.cache.customers.some(c => c.id === session.id && c.hash)) { setSession({ role: 'misafir' }); closePanel(); toast('Oturum kapandı. Tekrar giriş yapın.'); }
 }
 
@@ -1104,18 +1164,34 @@ function renderRoleForm() {
       <div class="field"><label for="rg_phone">Telefon *</label><input id="rg_phone" inputmode="tel" autocomplete="tel" required></div>
       <div class="field full"><label for="rg_email">E-posta</label><input id="rg_email" inputmode="email" autocomplete="email"></div>
       <div class="field full"><label for="rg_addr">Adres</label><input id="rg_addr" autocomplete="street-address"></div>
-      <div class="field full"><label for="rg_pw">Şifre * <small class="hint">(en az 4 karakter)</small></label><input id="rg_pw" type="password" autocomplete="new-password" required></div>
+      <div class="field full"><label for="rg_pw">Şifre * <small class="hint">(en az ${MIN_PW()} karakter)</small></label><input id="rg_pw" type="password" autocomplete="new-password" required></div>
       <div class="field full">${errBox}<button class="btn pri" type="submit">Üye ol ve giriş yap</button></div></form>
       <p class="hint">Bilgileriniz bir kere kaydedilir; sonraki tekliflerde tekrar yazmanız gerekmez.</p>`;
   else f.innerHTML = `<form id="lgTeam" class="fields">
       <div class="field"><label for="lg_user">Kullanıcı adı</label><input id="lg_user" autocomplete="username" autocapitalize="none" required></div>
       <div class="field"><label for="lg_tpw">Şifre</label><input id="lg_tpw" type="password" autocomplete="current-password" required></div>
       <div class="field full">${errBox}<button class="btn pri" type="submit">Giriş yap</button></div></form>
-      <p class="hint">Kullanıcı adları ve şifreler müdür panelindeki Kullanıcılar sekmesinden verilir.</p>`;
+      <p class="hint">Kullanıcı adları ve ${store.sb ? 'ilk giriş şifreleri' : 'şifreler'} müdür panelindeki Kullanıcılar sekmesinden verilir.</p>`;
+}
+const MIN_PW = () => store.sb ? 6 : 4;
+function busy(on) { const b = $('#roleForm button[type=submit]'); if (b) { b.disabled = on; b.style.opacity = on ? .6 : ''; } }
+async function sbSignIn(email, pw) { const { data, error } = await store.sb.auth.signInWithPassword({ email, password: pw }); return error ? null : data.user; }
+async function sbSignUp(email, pw) {
+  const { data, error } = await store.sb.auth.signUp({ email, password: pw });
+  if (error) return { err: /already|registered|exists/i.test(error.message) ? 'exists' : error.message };
+  if (!data.session) return { err: 'Kurulum eksik: Supabase\'te Authentication > Providers > Email > "Confirm email" kapatılmalı.' };
+  return { user: data.user };
 }
 async function loginCustomer() {
   const pk = phoneKey($('#lg_phone').value); const pw = $('#lg_pw').value;
   if (!pk || !pw) return showErr('Telefon ve şifre girin.');
+  if (store.sb) {
+    busy(true); const user = await sbSignIn(pk + SB_MAIL.uye, pw);
+    if (!user) { busy(false); return showErr('Telefon veya şifre yanlış.'); }
+    await sbLoadAll(); await sbAdopt(user); busy(false);
+    if (session.role !== 'uye') { await store.sb.auth.signOut(); return showErr('Üyelik kaydı bulunamadı. Tekrar üye olun.'); }
+    $('#roleDlg').close(); toast('Hoş geldiniz, ' + session.name); return;
+  }
   const h = await custHash(pk, pw);
   const c = store.cache.customers.find(c => c.hash && phoneKey(c.phone) === pk);
   if (!c) return showErr('Bu numarayla üyelik bulunamadı. Üye olabilirsiniz.');
@@ -1126,7 +1202,24 @@ async function registerCustomer() {
   const v = id => ($('#' + id)?.value || '').trim();
   const pk = phoneKey(v('rg_phone')); const pw = $('#rg_pw').value;
   if (!v('rg_name') || pk.length < 10) return showErr('Firma / ad soyad ve geçerli bir telefon numarası girin.');
-  if (pw.length < 4) return showErr('Şifre en az 4 karakter olmalı.');
+  if (pw.length < MIN_PW()) return showErr('Şifre en az ' + MIN_PW() + ' karakter olmalı.');
+  if (store.sb) {
+    busy(true);
+    const r = await sbSignUp(pk + SB_MAIL.uye, pw);
+    if (r.err) { busy(false); return showErr(r.err === 'exists' ? 'Bu numara zaten üye. Müşteri girişinden girin.' : r.err); }
+    try {
+      // Ekip daha önce bu telefonla müşteri kaydı açtıysa üyelik o kayda bağlanır
+      const { data: claimed, error } = await store.sb.rpc('customer_claim', { p_phone: pk }); if (error) throw error;
+      await sbLoad('customers');
+      const old = claimed && store.cache.customers.find(c => c.id === claimed);
+      const id = claimed || uid('m_'); const now = new Date().toISOString();
+      const rec = { ...(old || {}), name: v('rg_name'), contact: v('rg_contact') || old?.contact || '', phone: v('rg_phone'), email: v('rg_email') || old?.email || '', addr: v('rg_addr') || old?.addr || '',
+        memberSince: now, source: old?.source || 'Siteden üye oldu', createdAt: old?.createdAt || now, updatedAt: now };
+      await put('customers', id, rec); await sbLoadAll(); await sbAdopt(r.user);
+      busy(false); $('#roleDlg').close(); toast('Üyeliğiniz oluşturuldu');
+    } catch (e) { busy(false); showErr('Üyelik tamamlanamadı: ' + sbErr(e)); }
+    return;
+  }
   const old = store.cache.customers.find(c => phoneKey(c.phone) === pk);
   if (old?.hash) return showErr('Bu numara zaten üye. Müşteri girişinden girin.');
   const id = old?.id || uid('m_'); const now = new Date().toISOString();
@@ -1137,10 +1230,35 @@ async function registerCustomer() {
 }
 async function loginTeam() {
   const un = norm($('#lg_user').value.trim()); const pw = $('#lg_tpw').value;
+  if (store.sb) {
+    busy(true); const user = await sbSignIn(un + SB_MAIL.ekip, pw);
+    if (user) { await sbLoadAll(); await sbAdopt(user); busy(false); if (isStaff()) return teamWelcome(); await store.sb.auth.signOut(); return showErr('Bu hesap ekipte kayıtlı değil.'); }
+    // İlk giriş: müdürün verdiği geçici şifre doğruysa kişi kendi şifresini belirler
+    const { data: first } = await store.sb.rpc('team_first_login', { p_username: un, p_pw: pw }); busy(false);
+    if (!first) return showErr('Kullanıcı adı veya şifre yanlış.');
+    $('#roleForm').innerHTML = `<form id="lgFirst" class="fields" data-un="${esc(un)}" data-temp="${esc(pw)}">
+      <p class="hint full" style="margin:0">İlk girişiniz. Kendi şifrenizi belirleyin (en az 6 karakter); sonraki girişlerde bunu kullanacaksınız.</p>
+      <div class="field"><label for="fp_1">Yeni şifre</label><input id="fp_1" type="password" autocomplete="new-password" required></div>
+      <div class="field"><label for="fp_2">Yeni şifre (tekrar)</label><input id="fp_2" type="password" autocomplete="new-password" required></div>
+      <div class="field full">${errBox}<button class="btn pri" type="submit">Şifreyi kaydet ve gir</button></div></form>`;
+    $('#fp_1').focus(); return;
+  }
   const u = users().find(u => norm(u.username) === un);
   if (!u || u.hash !== await userHash(u.username, pw)) return showErr('Kullanıcı adı veya şifre yanlış.');
-  setSession({ role: u.role, id: u.id, name: u.name }); $('#roleDlg').close(); closeCart();
-  tab = u.role === 'mudur' ? 'ozet' : 'yeni'; location.hash = '#yonetim'; openPanel(); toast('Hoş geldiniz, ' + u.name);
+  setSession({ role: u.role, id: u.id, name: u.name }); teamWelcome();
+}
+function teamWelcome() { $('#roleDlg').close(); closeCart(); tab = isMgr() ? 'ozet' : 'yeni'; location.hash = '#yonetim'; openPanel(); toast('Hoş geldiniz, ' + session.name); }
+async function firstLogin(f) {
+  const p1 = $('#fp_1').value, p2 = $('#fp_2').value;
+  if (p1.length < 6) return showErr('Şifre en az 6 karakter olmalı.');
+  if (p1 !== p2) return showErr('İki şifre aynı değil.');
+  busy(true);
+  const r = await sbSignUp(f.dataset.un + SB_MAIL.ekip, p1);
+  if (r.err) { busy(false); return showErr(r.err === 'exists' ? 'Bu kullanıcı için hesap zaten var. Müdürden şifre sıfırlamasını isteyin.' : r.err); }
+  const { error } = await store.sb.rpc('team_claim', { p_username: f.dataset.un, p_pw: f.dataset.temp });
+  if (error) { busy(false); await store.sb.auth.signOut(); return showErr(sbErr(error)); }
+  await sbLoadAll(); await sbAdopt(r.user); busy(false);
+  if (isStaff()) teamWelcome(); else showErr('Giriş tamamlanamadı. Sayfayı yenileyip tekrar deneyin.');
 }
 
 /* ---------- Panel ---------- */
@@ -1331,11 +1449,12 @@ function staffView() {
     <form class="box" id="stForm"><h3>Kullanıcı ekle</h3><div class="fields">
       <div class="field full"><label for="st_name">Ad soyad *</label><input id="st_name" required></div>
       <div class="field"><label for="st_user">Kullanıcı adı *</label><input id="st_user" autocapitalize="none" autocomplete="off" required></div>
-      <div class="field"><label for="st_pw">Şifre *</label><input id="st_pw" autocomplete="new-password" required></div>
+      <div class="field"><label for="st_pw">${store.sb ? 'İlk giriş şifresi *' : 'Şifre *'}</label><input id="st_pw" autocomplete="new-password" required></div>
       <div class="field full"><label for="st_role">Yetki</label><select id="st_role"><option value="personel">Personel: teklif hazırlar, kendi tekliflerini görür</option><option value="mudur">Müdür: her şeyi görür ve yönetir</option></select></div>
     </div><p class="msg bad" id="stErr" hidden></p><button class="btn pri" type="submit">Ekle</button></form>
-    <div class="box"><h3>Ekip</h3><div class="tbl-wrap"><table class="tbl" style="min-width:520px"><thead><tr><th>Ad</th><th>Kullanıcı adı</th><th>Yetki</th><th class="r">Teklif</th><th></th></tr></thead><tbody>${us.map(u => `<tr><td>${esc(u.name)}${u.id === session.id ? ' <span class="hint">(siz)</span>' : ''}</td><td class="num">${esc(u.username)}</td><td>${ROLE_TR[u.role]}</td><td class="r">${cnt(u.id)}</td>
-      <td class="r" style="white-space:nowrap"><button class="link" data-act="pwUser" data-id="${esc(u.id)}">Şifre değiştir</button>${u.id !== session.id ? ` · <button class="link" data-act="delUser" data-id="${esc(u.id)}">Kaldır</button>` : ''}</td></tr>`).join('')}</tbody></table></div>
+    <div class="box"><h3>Ekip</h3><div class="tbl-wrap"><table class="tbl" style="min-width:520px"><thead><tr><th>Ad</th><th>Kullanıcı adı</th><th>Yetki</th><th class="r">Teklif</th><th></th></tr></thead><tbody>${us.map(u => `<tr><td>${esc(u.name)}${u.id === session.id ? ' <span class="hint">(siz)</span>' : ''}</td><td class="num">${esc(u.username)}</td><td>${ROLE_TR[u.role]}${store.sb && !u.claimed ? `<br><span class="hint">İlk girişi bekliyor${u.tempPw ? ' · şifre: ' + esc(u.tempPw) : ''}</span>` : ''}</td><td class="r">${cnt(u.id)}</td>
+      <td class="r" style="white-space:nowrap"><button class="link" data-act="pwUser" data-id="${esc(u.id)}">${store.sb && u.id !== session.id ? 'Şifre sıfırla' : 'Şifre değiştir'}</button>${u.id !== session.id ? ` · <button class="link" data-act="delUser" data-id="${esc(u.id)}">Kaldır</button>` : ''}</td></tr>`).join('')}</tbody></table></div>
+      ${store.sb ? '<p class="hint">Yeni kişi, kullanıcı adı ve ilk giriş şifresiyle girer; ilk girişte kendi şifresini belirler. Şifresini unutan kişiye “Şifre sıfırla” ile yeni bir ilk giriş şifresi verin.</p>' : ''}
       <form id="pwForm" class="fields" hidden style="margin-top:12px"><div class="field"><label for="pw_new" id="pwLbl">Yeni şifre</label><input id="pw_new" autocomplete="new-password"></div><div class="field" style="align-self:end"><button class="btn pri" type="submit">Şifreyi kaydet</button></div></form>
     </div>
     <form class="box" id="setForm"><h3>Ayarlar</h3><div class="fields"><div class="field"><label for="set_days">Teklif geçerlilik (gün)</label><input id="set_days" type="number" min="1" value="${esc(store.settings.validDays)}"></div></div><button class="btn" type="submit">Ayarları kaydet</button></form>
@@ -1381,7 +1500,12 @@ document.addEventListener('click', async e => {
     case 'nwCat': e.preventDefault(); newCat = t.dataset.cat; newQ = ''; $('#nw_q').value = ''; renderNewList(); $('#nwList').scrollTop = 0; break;
     case 'cartFromProd': $('#prodDlg').close(); openCart(); break;
     case 'closeCart': closeCart(); break;
-    case 'applyCoupon': couponCode = $('#coupon').value.trim().toUpperCase(); saveCart(); renderCart(); break;
+    case 'applyCoupon': {
+      couponCode = $('#coupon').value.trim().toUpperCase();
+      // Müşteri kupon listesini göremez; yazdığı kod sunucuda sorgulanır
+      if (store.sb && !isStaff() && couponCode) { const { data } = await store.sb.rpc('coupon_check', { p_code: couponCode }); if (data) store.cache.coupons = [...store.cache.coupons.filter(c => c.id !== data.id), data]; }
+      saveCart(); renderCart(); break;
+    }
     case 'clearCoupon': couponCode = ''; saveCart(); renderCart(); break;
     case 'makeOffer': makeOffer(); break;
     case 'pdf': downloadPdf(); break;
@@ -1392,10 +1516,10 @@ document.addEventListener('click', async e => {
     }
     case 'closeDlg': t.closest('dialog').close(); break;
     case 'openLogin': openRole(t.dataset.to); break;
-    case 'logout': setSession({ role: 'misafir' }); $('#roleDlg').close(); closePanel(); toast('Çıkış yapıldı'); break;
+    case 'logout': if (store.sb) await store.sb.auth.signOut(); setSession({ role: 'misafir' }); $('#roleDlg').close(); closePanel(); toast('Çıkış yapıldı'); break;
     case 'goPanel': $('#roleDlg').close(); location.hash = '#yonetim'; openPanel(); break;
     case 'ofGo': offerFilter = { staff: '', status: '', q: '' }; if (t.dataset.k === 'bekleyen') offerFilter.status = 'Yeni'; else offerFilter.staff = t.dataset.k; tab = 'teklifler'; renderPanel(); break;
-    case 'pwUser': { const u = users().find(x => x.id === id); const f = $('#pwForm'); f.hidden = false; f.dataset.id = id; $('#pwLbl').textContent = u.name + ' için yeni şifre'; $('#pw_new').value = ''; $('#pw_new').focus(); break; }
+    case 'pwUser': { const u = users().find(x => x.id === id); const f = $('#pwForm'); f.hidden = false; f.dataset.id = id; $('#pwLbl').textContent = store.sb && id !== session.id ? u.name + ' için yeni ilk giriş şifresi' : u.name + ' için yeni şifre'; $('#pw_new').value = ''; $('#pw_new').focus(); break; }
     case 'closePanel': closePanel(); break;
     case 'newCust': openCustomer(null); break;
     case 'custToCart': {
@@ -1419,7 +1543,7 @@ document.addEventListener('click', async e => {
     case 'delUser': {
       const rest = users().filter(u => u.id !== id);
       if (!rest.some(u => u.role === 'mudur')) { toast('En az bir müdür kalmalı.'); break; }
-      if (t.dataset.sure) await safe(() => putSettings({ users: rest }), 'Kullanıcı kaldırıldı');
+      if (t.dataset.sure) await safe(store.sb ? async () => { const { error } = await store.sb.rpc('team_remove', { p_id: id }); if (error) throw new Error(sbErr(error)); await sbLoad('team'); onStore(); } : () => putSettings({ users: rest }), 'Kullanıcı kaldırıldı');
       else { t.dataset.sure = '1'; t.textContent = 'Emin misiniz?'; }
       break;
     }
@@ -1485,16 +1609,29 @@ document.addEventListener('submit', async e => {
   if (f.id === 'lgCust') loginCustomer();
   if (f.id === 'lgReg') registerCustomer();
   if (f.id === 'lgTeam') loginTeam();
+  if (f.id === 'lgFirst') firstLogin(f);
   if (f.id === 'stForm') {
     const err = $('#stErr'); const un = norm(v('st_user')).replace(/\s+/g, '');
     if (!v('st_name') || !un || !v('st_pw')) { err.textContent = 'Ad, kullanıcı adı ve şifre gerekli.'; err.hidden = false; return; }
     if ($('#st_pw').value.length < 4) { err.textContent = 'Şifre en az 4 karakter olmalı.'; err.hidden = false; return; }
+    if (!/^[a-z0-9._-]+$/.test(un)) { err.textContent = 'Kullanıcı adında yalnızca harf (Türkçe karakter olmadan), rakam, nokta ve tire olabilir.'; err.hidden = false; return; }
     if (users().some(u => norm(u.username) === un)) { err.textContent = 'Bu kullanıcı adı alınmış.'; err.hidden = false; return; }
     const role = $('#st_role').value;
+    if (store.sb) { await safe(async () => { await sbWrite(store.sb.from('team').insert({ username: un, name: v('st_name'), role, temp_pw: $('#st_pw').value })); await sbLoad('team'); onStore(); }, 'Kullanıcı eklendi: ' + un); return; }
     await safe(async () => putSettings({ users: [...users(), { id: uid(role === 'mudur' ? 'u_' : 'p_'), name: v('st_name'), username: un, role, hash: await userHash(un, $('#st_pw').value) }] }), 'Kullanıcı eklendi: ' + un);
   }
   if (f.id === 'pwForm') {
     const pw = $('#pw_new').value; const u = users().find(x => x.id === f.dataset.id);
+    if (store.sb && u) {
+      if (u.id === session.id) {
+        if (pw.length < 6) { toast('Şifre en az 6 karakter olmalı.'); return; }
+        await safe(async () => { const { error } = await store.sb.auth.updateUser({ password: pw }); if (error) throw new Error(sbErr(error)); }, 'Şifreniz değişti');
+      } else {
+        if (pw.length < 4) { toast('İlk giriş şifresi en az 4 karakter olmalı.'); return; }
+        await safe(async () => { const { error } = await store.sb.rpc('team_reset', { p_id: u.id, p_temp: pw }); if (error) throw new Error(sbErr(error)); await sbLoad('team'); onStore(); }, u.name + ' yeni ilk giriş şifresiyle girebilir');
+      }
+      f.hidden = true; return;
+    }
     if (!u || pw.length < 4) { toast('Şifre en az 4 karakter olmalı.'); return; }
     const h = await userHash(u.username, pw);
     await safe(() => putSettings({ users: users().map(x => x.id === u.id ? { ...x, hash: h } : x) }), u.name + ' için şifre değişti');
