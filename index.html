@@ -1234,7 +1234,8 @@ async function loginTeam() {
     busy(true); const user = await sbSignIn(un + SB_MAIL.ekip, pw);
     if (user) { await sbLoadAll(); await sbAdopt(user); busy(false); if (isStaff()) return teamWelcome(); await store.sb.auth.signOut(); return showErr('Bu hesap ekipte kayıtlı değil.'); }
     // İlk giriş: müdürün verdiği geçici şifre doğruysa kişi kendi şifresini belirler
-    const { data: first } = await store.sb.rpc('team_first_login', { p_username: un, p_pw: pw }); busy(false);
+    const { data: first, error: fe } = await store.sb.rpc('team_first_login', { p_username: un, p_pw: pw }); busy(false);
+    if (fe) return showErr('Sunucu hatası: ' + fe.message);
     if (!first) return showErr('Kullanıcı adı veya şifre yanlış.');
     $('#roleForm').innerHTML = `<form id="lgFirst" class="fields" data-un="${esc(un)}" data-temp="${esc(pw)}">
       <p class="hint full" style="margin:0">İlk girişiniz. Kendi şifrenizi belirleyin (en az 6 karakter); sonraki girişlerde bunu kullanacaksınız.</p>
