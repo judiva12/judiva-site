@@ -578,7 +578,7 @@ function loadLocal() {
 }
 function saveLocal(c) { ls.set('judiva.' + c, store.cache[c]); }
 /* Kendi alan adında: Supabase (gerçek giriş ve ortak kayıt). Ayarları GitHub yayınında doldurulur. */
-const SB_CONF = /*SUPABASE*/null;
+const SB_CONF = {"url": "https://npbsikjmaoodojfbzplq.supabase.co", "key": "sb_publishable_h74qmNtmmFfneMXFqLfATg_X_BUTGVe"};
 const SB_MAIL = { ekip: '@ekip.judiva.com.tr', uye: '@uye.judiva.com.tr' };
 function loadScript(src) { return new Promise((res, rej) => { const s = document.createElement('script'); s.src = src; s.onload = res; s.onerror = rej; document.head.appendChild(s); }); }
 // Supabase satırı → sitenin kullandığı kayıt. Müşteride `hash` üyelik işaretidir (yerel modda şifre özeti).
@@ -609,7 +609,7 @@ async function sbAdopt(user) {
   if (session.role !== 'misafir') setSession({ role: 'misafir' });
 }
 async function initSupabase() {
-  await loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js');
+  await loadScript('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js');
   const sb = window.supabase.createClient(SB_CONF.url, SB_CONF.key, { auth: { persistSession: true, storageKey: 'judiva.auth' } });
   store.sb = sb; store.shared = true;
   const { data: { session: s } } = await sb.auth.getSession();
