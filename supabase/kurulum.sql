@@ -100,7 +100,8 @@ begin
     new.staff_id := old.staff_id;
   else
     new.auth_id := (select auth_id from customers where id = new.data->>'customerId');
-    new.staff_id := my_team_id();
+    -- Ekip üyesi kendi adına; müşteri seçtiği personel adına (geçerli bir ekip üyesiyse) teklif açar
+    new.staff_id := coalesce(my_team_id(), (select t.id from team t where t.id = new.staff_id));
   end if;
   return new;
 end $$;
@@ -239,7 +240,13 @@ begin
   return v_id;
 end $$;
 
-grant execute on function public.coupon_check(text), public.team_first_login(text, text) to anon, authenticated;
+-- Müşterinin sepette seçebilmesi için ekip adları (yalnızca ad ve rol)
+create or replace function public.team_names() returns table (id uuid, name text, role text)
+language sql stable security definer set search_path = public as $$
+  select id, name, role from team order by role desc, name;
+$$;
+
+grant execute on function public.coupon_check(text), public.team_first_login(text, text), public.team_names() to anon, authenticated;
 grant execute on function public.team_claim(text, text), public.team_reset(uuid, text), public.team_remove(uuid), public.customer_claim(text) to authenticated;
 grant select on public.products, public.settings to anon;
 grant select, insert, update, delete on public.team, public.customers, public.offers, public.coupons, public.products, public.settings to authenticated;
