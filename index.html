@@ -348,7 +348,8 @@ button.ccard:hover { border-color: var(--brass); }
 .sf-sum .lns { display: grid; gap: 4px; max-height: 150px; overflow-y: auto; }
 .btn.go { background: var(--brass); border-color: var(--brass); color: var(--bg); font-weight: 600; padding: 12px 14px; }
 .btn.go:hover { filter: brightness(1.08); border-color: var(--brass); }
-@media (max-width: 860px) { .sofra { grid-template-columns: 1fr; } .sf-right { position: static; order: -1; } .tiles { max-height: 380px; } }
+.sofra .mb { display: none; }
+@media (max-width: 860px) { .sofra .dk { display: none; } .sofra .mb { display: inline; } .sofra { grid-template-columns: 1fr; } .sf-right { position: static; order: -1; } .tiles { max-height: 380px; } }
 @media (max-width: 520px) { .tiles { grid-template-columns: 1fr; } }
 .layers { position: relative; height: 240vh; background: var(--bg); }
 .ly-stick { position: sticky; top: 0; height: 100svh; min-height: 560px; overflow: hidden; display: grid; grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); align-items: center; gap: 24px; }
@@ -1133,7 +1134,7 @@ function sofraHTML() {
   return `<div class="sofra" id="sofra">
     <div class="sf-left">
       <div><span class="eyebrow">Sofra kur</span><h3>Sofranı kendin seç.</h3></div>
-      <p>Mezeleri, pastaları ve içecekleri seçtikçe sağdaki sofra kurulur. Hepsini tek dokunuşla sepete ekleyip teklif alabilirsiniz.</p>
+      <p>Mezeleri, pastaları ve içecekleri seçtikçe <span class="dk">sağdaki</span><span class="mb">yukarıdaki</span> sofra kurulur. Hepsini tek dokunuşla sepete ekleyip teklif alabilirsiniz.</p>
       <div><p class="sf-step"><b>1.</b>Her mezeden ne kadar</p><div class="sizes" id="sfSizes"></div></div>
       <div><p class="sf-step"><b>2.</b>Sofraya ekle</p><div class="sf-tabs" id="sfTabs" role="tablist"></div><input class="sf-search" id="sfQ" type="search" placeholder="Ara" aria-label="Sofra ürünlerinde ara" value="${esc(sofraQ)}"><div class="tiles" id="sfTiles"></div></div>
     </div>
@@ -1150,7 +1151,7 @@ function renderSofra() {
   const sel = sofra.sel.map(byId).filter(Boolean);
   const shown = sel.length ? sel.slice(-SLOTS.length) : ms.filter(m => m.img).slice(0, 6);
   $('#sfTable').innerHTML = shown.map((p, i) => { const [x, y, z] = SLOTS[i]; return `<div class="plate${sel.length ? '' : ' ghost'}" style="--x:${x}%;--y:${y}%;--s:${z}%">${p.img ? `<img src="${esc(p.img)}" alt="">` : ''}</div>`; }).join('')
-    + `<div class="table-label"><b>${sel.length ? sel.length + ' çeşit' : 'Boş sofra'}</b><span>${sel.length ? sofraSummary(sel) : 'Soldan seçim yapın'}</span></div>`;
+    + `<div class="table-label"><b>${sel.length ? sel.length + ' çeşit' : 'Boş sofra'}</b><span>${sel.length ? sofraSummary(sel) : '<span class="dk">Soldan seçim yapın</span><span class="mb">Aşağıdan seçim yapın ↓</span>'}</span></div>`;
   const total = sel.reduce((t, p) => t + p.price * sofraQty(p), 0);
   $('#sfSum').innerHTML = sel.length ? `<div class="lns">${sel.map(p => `<div class="ln"><span>${esc(p.name)} · ${fmtQty(sofraQty(p))} ${esc(unitOf(p))}</span><span>${fmt(p.price * sofraQty(p))}</span></div>`).join('')}</div>
       <div class="tot big"><span>Sofra toplamı</span><span>${fmt(total)}</span></div>
