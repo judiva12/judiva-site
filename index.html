@@ -1437,13 +1437,13 @@ function priceRows() {
   const list = allProducts().filter(p => (!priceCat || p.cat === priceCat) && (!q || norm(p.name).includes(q)));
   return list.length ? `<div class="tbl-wrap"><table class="tbl" style="min-width:460px"><thead><tr><th>Ürün</th><th>Kategori</th><th class="r">Fiyat (₺)</th><th></th></tr></thead><tbody>${list.slice(0, 300).map(p => `<tr>
     <td>${esc(p.name)}${p.custom ? ' <span class="chip">Yeni</span>' : ''}</td><td>${esc(CATS.find(c => c.key === p.cat)?.label || '')}</td>
-    <td class="r" style="white-space:nowrap"><input type="number" min="0" step="any" value="${+p.price}" data-price-id="${esc(p.id)}" aria-label="${esc(p.name)} fiyatı" style="width:110px;text-align:right;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:6px 8px"> / ${esc(unitOf(p))}</td>
+    <td class="r" style="white-space:nowrap"><input type="number" min="0" step="any" value="${+p.price}" data-price-id="${esc(p.id)}" aria-label="${esc(p.name)} fiyatı" style="width:110px;text-align:right;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:6px 8px"> / ${esc(unitOf(p))} <button class="btn sm" type="button" data-act="savePrice" data-id="${esc(p.id)}">Kaydet</button></td>
     <td>${p.basePrice != null ? `<button class="link" data-act="resetPrice" data-id="${esc(p.id)}" title="Eski fiyat: ${fmt(p.basePrice)}">Eski fiyata dön</button>` : ''}</td></tr>`).join('')}</tbody></table></div>` : '<p class="hint">Bu aramayla eşleşen ürün yok.</p>';
 }
 function productsView() {
   const list = store.cache.products;
   return `<div class="box" style="margin-bottom:16px"><h3>Fiyatlar</h3>
-    <p class="hint">Fiyatı değiştirip Enter'a basın ya da kutudan çıkın; menüde ve yeni tekliflerde hemen geçerli olur. Önceden hazırlanmış teklifler değişmez.</p>
+    <p class="hint">Fiyatı yazıp yanındaki <b>Kaydet</b>'e basın (Enter da olur); menüde ve yeni tekliflerde hemen geçerli olur. Önceden hazırlanmış teklifler değişmez.</p>
     <div class="filters"><input id="pp_q" type="search" placeholder="Ürün ara" value="${esc(priceQ)}"><select id="pp_cat"><option value="">Tüm kategoriler</option>${CATS.map(c => `<option value="${c.key}"${priceCat === c.key ? ' selected' : ''}>${c.label}</option>`).join('')}</select></div>
     <div id="ppList">${priceRows()}</div></div>
   <div class="split">
@@ -1583,6 +1583,7 @@ document.addEventListener('click', async e => {
         else { const c = store.cache.customers.find(x => x.id === id); if (c) { delete c.hash; saveLocal('customers'); onStore(); } }
       }, 'Şifre sıfırlandı. Müşteri aynı numarayla tekrar üye olup yeni şifre belirleyebilir.');
       $('#custDlg').close(); break;
+    case 'savePrice': { const inp = document.querySelector(`[data-price-id="${CSS.escape(id)}"]`); if (inp) { const p = byId(id); if (+inp.value === +p?.price) toast('Fiyat zaten kayıtlı: ' + fmt(p.price)); else await savePrice(inp); } break; }
     case 'resetPrice': { const pr = { ...(store.settings.prices || {}) }; delete pr[id]; await safe(() => putSettings({ prices: pr }), 'Eski fiyata dönüldü'); break; }
     case 'delOffer':
       if (t.dataset.sure) { if (await safe(() => del('offers', id), 'Teklif silindi') !== false && $('#offerDlg').open) $('#offerDlg').close(); }
@@ -1625,14 +1626,16 @@ document.addEventListener('change', async e => {
   }
   if (t.id === 'of_staff') { offerFilter.staff = t.value; renderPanel(); }
   if (t.id === 'pp_cat') { priceCat = t.value; $('#ppList').innerHTML = priceRows(); }
-  if (t.dataset.priceId) {
+  if (t.id === 'of_status') { offerFilter.status = t.value; renderPanel(); }
+});
+async function savePrice(t) {
+  {
     const id = t.dataset.priceId, v = +t.value, p = byId(id);
     if (!p || !(v >= 0) || t.value === '' || v === +p.price) return;
     if (p.custom) await safe(() => patch('products', id, { price: v }), p.name + ': ' + fmt(v));
     else await safe(() => putSettings({ prices: { ...(store.settings.prices || {}), [id]: v } }), p.name + ': ' + fmt(v));
   }
-  if (t.id === 'of_status') { offerFilter.status = t.value; renderPanel(); }
-});
+}
 document.addEventListener('input', e => {
   const t = e.target;
   if (t.id === 'nw_q') { newQ = t.value; renderNewList(); }
@@ -1644,6 +1647,7 @@ document.addEventListener('input', e => {
   if (t.id === 'cu_q') { custQ = t.value; clearTimeout(renderPanel.t); renderPanel.t = setTimeout(() => { renderPanel(); const el = $('#cu_q'); el.focus(); el.setSelectionRange(el.value.length, el.value.length); }, 250); }
 });
 document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.target.dataset?.priceId) { e.preventDefault(); savePrice(e.target); }
   if (e.key === 'Enter' && e.target.id === 'coupon') { e.preventDefault(); $('[data-act="applyCoupon"]').click(); }
   if (e.key === 'Escape' && $('#drawer').classList.contains('open')) closeCart();
 });
