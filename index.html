@@ -895,7 +895,7 @@ function renderCart() {
       <div class="fields">
         <div class="field full"><label for="c_name">Firma / ad soyad *</label><input id="c_name" value="${esc(d.name)}" autocomplete="organization"></div>
         <div class="field"><label for="c_contact">Yetkili kişi</label><input id="c_contact" value="${esc(d.contact)}" autocomplete="name"></div>
-        <div class="field"><label for="c_phone">Telefon *</label><input id="c_phone" value="${esc(d.phone)}" inputmode="tel" autocomplete="tel"${session.role === 'uye' ? ' readonly' : ''}></div>
+        <div class="field"><label for="c_phone">Telefon *</label><input id="c_phone" value="${esc(d.phone)}" inputmode="tel" autocomplete="tel"></div>
         <div class="field full"><label for="c_email">E-posta</label><input id="c_email" value="${esc(d.email)}" inputmode="email" autocomplete="email"></div>
         <div class="field full"><label for="c_addr">Adres</label><input id="c_addr" value="${esc(d.addr)}" autocomplete="street-address"></div>
         ${session.role === 'uye' ? `<div class="field full"><label for="c_rep">Sizinle ilgilenen Judiva personeli *</label><select id="c_rep"><option value="">Seçin…</option>${teamNames().map(u => `<option value="${esc(u.id)}"${lastRep() === u.id ? ' selected' : ''}>${esc(u.name)}${u.role === 'mudur' ? ' (Müdür)' : ''}</option>`).join('')}<option value="yok"${lastRep() === 'yok' ? ' selected' : ''}>Daha önce görüşmedim</option></select></div>` : ''}
