@@ -180,6 +180,7 @@ main { padding-block: 24px 120px; display: grid; gap: 72px; }
 .btn.pri { background: var(--wine); border-color: var(--wine); font-weight: 500; }
 .btn.pri:hover { background: var(--wine-hi); border-color: var(--wine-hi); }
 .btn.danger:hover { border-color: var(--bad); color: var(--bad); }
+.btn.sm { padding: 5px 10px; font-size: 12px; border-radius: 8px; }
 .btn[disabled] { opacity: .5; cursor: not-allowed; }
 .msg { font-size: 13px; margin: 6px 0 0; }
 .msg.ok { color: var(--ok); } .msg.bad { color: var(--bad); }
@@ -1336,7 +1337,7 @@ function offersView() {
   if (offerFilter.status) list = list.filter(o => o.status === offerFilter.status);
   if (offerFilter.q) { const q = norm(offerFilter.q); list = list.filter(o => norm(o.no + ' ' + o.customer?.name + ' ' + o.customer?.contact + ' ' + o.by?.name).includes(q)); }
   const ym = new Date().toISOString().slice(0, 7);
-  const month = all.filter(o => (o.createdAt || '').startsWith(ym));
+  const month = all.filter(o => (o.createdAt || '').startsWith(ym) && o.status !== 'Reddedildi');
   const acc = all.filter(o => o.status === 'Kabul edildi');
   const decided = all.filter(o => o.status === 'Kabul edildi' || o.status === 'Reddedildi').length;
   const staff = users();
@@ -1351,9 +1352,9 @@ function offersView() {
       ${mgr ? `<select id="of_staff"><option value="">Tüm hazırlayanlar</option><option value="musteri"${offerFilter.staff === 'musteri' ? ' selected' : ''}>Müşterinin kendisi</option>${staff.map(s => `<option value="${esc(s.id)}"${offerFilter.staff === s.id ? ' selected' : ''}>${esc(s.name)} (${ROLE_TR[s.role]})</option>`).join('')}</select>` : ''}
       <select id="of_status"><option value="">Tüm durumlar</option>${STATUSES.map(s => `<option${offerFilter.status === s ? ' selected' : ''}>${s}</option>`).join('')}</select>
     </div>
-    ${list.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Teklif</th><th>Tarih</th><th>Müşteri</th><th>Hazırlayan</th><th class="r">Tutar</th><th>Durum</th></tr></thead><tbody>
+    ${list.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Teklif</th><th>Tarih</th><th>Müşteri</th><th>Hazırlayan</th><th class="r">Tutar</th><th>Durum</th><th></th></tr></thead><tbody>
       ${list.map(o => `<tr><td><button class="link" style="color:var(--text);font-size:14px" data-open="${esc(o.id)}">${esc(o.no)}</button></td><td class="num">${esc(fmtShort(o.createdAt))}</td><td>${esc(o.customer?.name)}</td><td>${o.by?.role === 'musteri' ? `${esc(o.by.staffName || 'Müşteri (kendisi)')}<br><span class="chip">${o.by.staffName ? 'Müşteri seçti' : 'Müşteri kendisi'}</span>` : esc(o.by?.name)}</td><td class="r">${fmt(o.total)}${o.coupon ? `<br><span class="chip">${esc(o.coupon.code)}</span>` : ''}</td>
-      <td><select class="st" data-s="${esc(o.status)}" data-status="${esc(o.id)}" aria-label="Durum">${STATUSES.map(s => `<option${s === o.status ? ' selected' : ''}>${s}</option>`).join('')}</select></td></tr>`).join('')}
+      <td><select class="st" data-s="${esc(o.status)}" data-status="${esc(o.id)}" aria-label="Durum">${STATUSES.map(s => `<option${s === o.status ? ' selected' : ''}>${s}</option>`).join('')}</select></td><td>${mgr || o.by?.staffId === session.id ? `<button class="btn danger sm" type="button" data-act="delOffer" data-id="${esc(o.id)}" title="Teklifi sil">Sil</button>` : ''}</td></tr>`).join('')}
     </tbody></table></div>` : `<p class="empty">${all.length ? 'Bu filtreyle eşleşen teklif yok.' : 'Henüz teklif yok. Menüden ürün seçip sepette “Teklifi oluştur” dediğinizde burada listelenir.'}</p>`}`;
 }
 function custStats(id) {
@@ -1430,7 +1431,7 @@ function summaryView() {
   const all = store.cache.offers.slice().sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
   const sum = os => os.reduce((s, o) => s + (+o.total || 0), 0);
   const ym = new Date().toISOString().slice(0, 7);
-  const month = all.filter(o => (o.createdAt || '').startsWith(ym));
+  const month = all.filter(o => (o.createdAt || '').startsWith(ym) && o.status !== 'Reddedildi');
   const open = all.filter(o => o.status === 'Yeni' || o.status === 'Gönderildi');
   const acc = all.filter(o => o.status === 'Kabul edildi');
   const decided = acc.length + all.filter(o => o.status === 'Reddedildi').length;
@@ -1551,6 +1552,10 @@ document.addEventListener('click', async e => {
         else { const c = store.cache.customers.find(x => x.id === id); if (c) { delete c.hash; saveLocal('customers'); onStore(); } }
       }, 'Şifre sıfırlandı. Müşteri aynı numarayla tekrar üye olup yeni şifre belirleyebilir.');
       $('#custDlg').close(); break;
+    case 'delOffer':
+      if (t.dataset.sure) await safe(() => del('offers', id), 'Teklif silindi');
+      else { t.dataset.sure = '1'; t.textContent = 'Emin misiniz?'; t.style.color = t.style.borderColor = 'var(--bad)'; setTimeout(() => { if (t.isConnected) { delete t.dataset.sure; t.textContent = 'Sil'; t.style.color = t.style.borderColor = ''; } }, 4000); }
+      break;
     case 'delCust':
       if (t.dataset.sure) { await safe(() => del('customers', id), 'Müşteri silindi'); $('#custDlg').close(); }
       else { t.dataset.sure = '1'; t.textContent = 'Silmek için tekrar dokunun'; }

@@ -146,7 +146,7 @@ create policy offers_insert on public.offers for insert with check (is_team() or
 drop policy if exists offers_update on public.offers;
 create policy offers_update on public.offers for update using (is_mgr() or staff_id = my_team_id()) with check (is_team());
 drop policy if exists offers_delete on public.offers;
-create policy offers_delete on public.offers for delete using (is_mgr());
+create policy offers_delete on public.offers for delete using (is_mgr() or staff_id = my_team_id());
 
 -- Kuponları ekip görür; müşteri sadece yazdığı kodu coupon_check ile sorgular
 drop policy if exists coupons_read on public.coupons;
