@@ -529,7 +529,7 @@ const HERO_IDS = [246, 130, 188, 253, 135, 251];
 const STATUSES = ['Yeni', 'Gönderildi', 'Kabul edildi', 'Reddedildi'];
 const DEFAULT_SETTINGS = { validDays: 15, users: [
   { id: 'u_azra', name: 'Azra', username: 'azra', role: 'mudur', hash: 'f52c29f086c52b602047783e3bea8c5a579dfa46994b520939a1d142d6ebfadb' },
-  { id: 'u_mudur2', name: 'Müdür 2', username: 'mudur2', role: 'mudur', hash: '1a37adca193f4f3be34d1f442b3b1a9a25b759dde4e8577d0a41bb1da3208576' },
+  { id: 'u_mudur2', name: 'Onur', username: 'mudur2', role: 'mudur', hidePick: true, hash: '1a37adca193f4f3be34d1f442b3b1a9a25b759dde4e8577d0a41bb1da3208576' },
   { id: 'p_ebrar', name: 'Ebrar', username: 'ebrar', role: 'personel', hash: '1919ae178e99c94c5fe930669cb4b99204b3520033b48fde566e6fba9b0bb2cb' },
   { id: 'p_miray', name: 'Miray', username: 'miray', role: 'personel', hash: '599f1ad70177e38085f0c86dee7ad89b553a9aa1571546c651f98e73e8b0890b' },
 ] };
@@ -694,7 +694,7 @@ function setSession(s) { session = s; ls.set('judiva.session', s); custDraft = {
 function isStaff() { return session.role === 'personel' || session.role === 'mudur'; }
 function isMgr() { return session.role === 'mudur'; }
 function users() { return store.sb ? store.cache.team : (store.settings.users || []); }
-function teamNames() { return store.sb ? (store.cache.teamNames || []) : users().map(u => ({ id: u.id, name: u.name, role: u.role })); }
+function teamNames() { return store.sb ? (store.cache.teamNames || []) : users().filter(u => !u.hidePick).map(u => ({ id: u.id, name: u.name, role: u.role })); }
 // Müşterinin daha önce çalıştığı personel: son seçimi ya da son teklifindeki personel
 function lastRep() {
   const c = me(); if (custDraft.repId !== undefined) return custDraft.repId;
@@ -898,7 +898,7 @@ function renderCart() {
         <div class="field"><label for="c_phone">Telefon *</label><input id="c_phone" value="${esc(d.phone)}" inputmode="tel" autocomplete="tel"></div>
         <div class="field full"><label for="c_email">E-posta</label><input id="c_email" value="${esc(d.email)}" inputmode="email" autocomplete="email"></div>
         <div class="field full"><label for="c_addr">Adres</label><input id="c_addr" value="${esc(d.addr)}" autocomplete="street-address"></div>
-        ${session.role === 'uye' ? `<div class="field full"><label for="c_rep">Sizinle ilgilenen Judiva personeli *</label><select id="c_rep"><option value="">Seçin…</option>${teamNames().map(u => `<option value="${esc(u.id)}"${lastRep() === u.id ? ' selected' : ''}>${esc(u.name)}${u.role === 'mudur' ? ' (Müdür)' : ''}</option>`).join('')}<option value="yok"${lastRep() === 'yok' ? ' selected' : ''}>Daha önce görüşmedim</option></select></div>` : ''}
+        ${session.role === 'uye' ? `<div class="field full"><label for="c_rep">Sizinle ilgilenen Judiva personeli *</label><select id="c_rep"><option value="">Seçin…</option>${teamNames().map(u => `<option value="${esc(u.id)}"${lastRep() === u.id ? ' selected' : ''}>${esc(u.name)}</option>`).join('')}<option value="yok"${lastRep() === 'yok' ? ' selected' : ''}>Daha önce görüşmedim</option></select></div>` : ''}
         <div class="field full"><label for="c_note">Teklife not</label><textarea id="c_note" placeholder="Teslim tarihi, etkinlik, özel istek…">${esc(d.note)}</textarea></div>
       </div>
       <p class="msg bad" id="custErr" hidden></p>
@@ -1350,7 +1350,7 @@ function offersView() {
       <select id="of_status"><option value="">Tüm durumlar</option>${STATUSES.map(s => `<option${offerFilter.status === s ? ' selected' : ''}>${s}</option>`).join('')}</select>
     </div>
     ${list.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Teklif</th><th>Tarih</th><th>Müşteri</th><th>Hazırlayan</th><th class="r">Tutar</th><th>Durum</th></tr></thead><tbody>
-      ${list.map(o => `<tr><td><button class="link" style="color:var(--text);font-size:14px" data-open="${esc(o.id)}">${esc(o.no)}</button></td><td class="num">${esc(fmtShort(o.createdAt))}</td><td>${esc(o.customer?.name)}</td><td>${esc(o.by?.name)}</td><td class="r">${fmt(o.total)}${o.coupon ? `<br><span class="chip">${esc(o.coupon.code)}</span>` : ''}</td>
+      ${list.map(o => `<tr><td><button class="link" style="color:var(--text);font-size:14px" data-open="${esc(o.id)}">${esc(o.no)}</button></td><td class="num">${esc(fmtShort(o.createdAt))}</td><td>${esc(o.customer?.name)}</td><td>${o.by?.role === 'musteri' ? `${esc(o.by.staffName || 'Müşteri (kendisi)')}<br><span class="chip">${o.by.staffName ? 'Müşteri seçti' : 'Müşteri kendisi'}</span>` : esc(o.by?.name)}</td><td class="r">${fmt(o.total)}${o.coupon ? `<br><span class="chip">${esc(o.coupon.code)}</span>` : ''}</td>
       <td><select class="st" data-s="${esc(o.status)}" data-status="${esc(o.id)}" aria-label="Durum">${STATUSES.map(s => `<option${s === o.status ? ' selected' : ''}>${s}</option>`).join('')}</select></td></tr>`).join('')}
     </tbody></table></div>` : `<p class="empty">${all.length ? 'Bu filtreyle eşleşen teklif yok.' : 'Henüz teklif yok. Menüden ürün seçip sepette “Teklifi oluştur” dediğinizde burada listelenir.'}</p>`}`;
 }

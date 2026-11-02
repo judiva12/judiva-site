@@ -17,6 +17,7 @@ create table if not exists public.team (
   name text not null,
   role text not null check (role in ('personel', 'mudur')),
   auth_id uuid unique references auth.users (id) on delete set null,
+  in_picker boolean not null default true,  -- müşteri sepette personel seçerken listede görünsün mü
   temp_pw text,                      -- ilk giriş şifresi; ilk girişte kişi kendi şifresini belirler ve bu silinir
   created_at timestamptz not null default now()
 );
@@ -261,7 +262,7 @@ end $$;
 -- Müşterinin sepette seçebilmesi için ekip adları (yalnızca ad ve rol)
 create or replace function public.team_names() returns table (id uuid, name text, role text)
 language sql stable security definer set search_path = public as $$
-  select id, name, role from team order by role desc, name;
+  select id, name, role from team where in_picker order by name;
 $$;
 
 grant execute on function public.coupon_check(text), public.team_first_login(text, text), public.team_names() to anon, authenticated;
@@ -285,7 +286,7 @@ insert into public.settings (id, data) values ('main', '{"validDays": 15}') on c
 -- Geçici şifre 1111: her kişi ilk girişte kendi şifresini (en az 6 karakter) belirler
 insert into public.team (username, name, role, temp_pw) values
   ('azra', 'Azra', 'mudur', '1111'),
-  ('mudur2', 'Müdür 2', 'mudur', '1111'),
+  ('onur', 'Onur', 'mudur', '1111'),
   ('ebrar', 'Ebrar', 'personel', '1111'),
   ('miray', 'Miray', 'personel', '1111')
 on conflict (username) do nothing;
