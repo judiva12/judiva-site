@@ -79,7 +79,8 @@ create or replace function public.customers_guard() returns trigger
 language plpgsql security definer set search_path = public as $$
 begin
   if tg_op = 'UPDATE' then
-    if not (old.auth_id is null and new.auth_id = auth.uid() and current_setting('judiva.claim', true) = 'on') then
+    if not (old.auth_id is null and new.auth_id = auth.uid() and current_setting('judiva.claim', true) = 'on')
+       and not (new.auth_id is null and current_setting('judiva.reset', true) = 'on') then
       new.auth_id := old.auth_id;
     end if;
   elsif is_team() then
@@ -94,7 +95,8 @@ create or replace function public.offers_guard() returns trigger
 language plpgsql security definer set search_path = public as $$
 begin
   if tg_op = 'UPDATE' then
-    if not (old.auth_id is null and current_setting('judiva.claim', true) = 'on') then
+    if not (old.auth_id is null and current_setting('judiva.claim', true) = 'on')
+       and not (new.auth_id is null and current_setting('judiva.reset', true) = 'on') then
       new.auth_id := old.auth_id;
     end if;
     new.staff_id := old.staff_id;
@@ -240,6 +242,22 @@ begin
   return v_id;
 end $$;
 
+-- Ekip: şifresini unutan üye müşterinin girişini sıfırla. Müşteri kaydı ve teklifleri kalır;
+-- müşteri aynı telefonla tekrar "Üye ol" deyip yeni şifre belirler, eski kaydına otomatik bağlanır.
+create or replace function public.customer_reset(p_id text) returns void
+language plpgsql security definer set search_path = public as $$
+declare v_auth uuid;
+begin
+  if not is_team() then raise exception 'Yalnızca ekip'; end if;
+  select auth_id into v_auth from customers where id = p_id;
+  if v_auth is null then raise exception 'Bu müşterinin üyeliği yok'; end if;
+  perform set_config('judiva.reset', 'on', true);
+  update customers set auth_id = null where id = p_id;
+  update offers set auth_id = null where auth_id = v_auth;
+  perform set_config('judiva.reset', 'off', true);
+  delete from auth.users where id = v_auth;
+end $$;
+
 -- Müşterinin sepette seçebilmesi için ekip adları (yalnızca ad ve rol)
 create or replace function public.team_names() returns table (id uuid, name text, role text)
 language sql stable security definer set search_path = public as $$
@@ -247,7 +265,7 @@ language sql stable security definer set search_path = public as $$
 $$;
 
 grant execute on function public.coupon_check(text), public.team_first_login(text, text), public.team_names() to anon, authenticated;
-grant execute on function public.team_claim(text, text), public.team_reset(uuid, text), public.team_remove(uuid), public.customer_claim(text) to authenticated;
+grant execute on function public.team_claim(text, text), public.team_reset(uuid, text), public.team_remove(uuid), public.customer_claim(text), public.customer_reset(text) to authenticated;
 grant select on public.products, public.settings to anon;
 grant select, insert, update, delete on public.team, public.customers, public.offers, public.coupons, public.products, public.settings to authenticated;
 

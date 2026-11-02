@@ -1170,7 +1170,8 @@ function renderRoleForm() {
       <div class="field full"><label for="lg_phone">Telefon</label><input id="lg_phone" inputmode="tel" autocomplete="tel" required></div>
       <div class="field full"><label for="lg_pw">Şifre</label><input id="lg_pw" type="password" autocomplete="current-password" required></div>
       <div class="field full">${errBox}<button class="btn pri" type="submit">Giriş yap</button></div></form>
-      <p class="hint">Bu cihazda bir kere giriş yaptığınızda çıkış yapana kadar girişli kalırsınız. Hesabınız yoksa <button class="link" data-pick="uyelik">üye olun</button>.</p>`;
+      <p class="hint">Bu cihazda bir kere giriş yaptığınızda çıkış yapana kadar girişli kalırsınız. Hesabınız yoksa <button class="link" data-pick="uyelik">üye olun</button>.</p>
+      <details class="hint"><summary style="cursor:pointer">Şifremi unuttum</summary><p style="margin:6px 0 0">Judiva'yı arayın ya da sizinle ilgilenen personele yazın; üyeliğinizin şifresini sıfırlasınlar. Sonra aynı telefon numarasıyla yeniden <button class="link" data-pick="uyelik">üye olun</button> ve yeni şifrenizi belirleyin. Bilgileriniz ve geçmiş teklifleriniz silinmez.</p></details>`;
   else if (pickRole === 'uyelik') f.innerHTML = `<form id="lgReg" class="fields">
       <div class="field full"><label for="rg_name">Firma / ad soyad *</label><input id="rg_name" autocomplete="organization" required></div>
       <div class="field"><label for="rg_contact">Yetkili kişi</label><input id="rg_contact" autocomplete="name"></div>
@@ -1219,7 +1220,7 @@ async function registerCustomer() {
   if (store.sb) {
     busy(true);
     const r = await sbSignUp(pk + SB_MAIL.uye, pw);
-    if (r.err) { busy(false); return showErr(r.err === 'exists' ? 'Bu numara zaten üye. Müşteri girişinden girin.' : r.err); }
+    if (r.err) { busy(false); return showErr(r.err === 'exists' ? 'Bu numara zaten üye. Müşteri girişinden girin. Şifrenizi unuttuysanız Judiva\'dan şifre sıfırlamasını isteyin.' : r.err); }
     try {
       // Ekip daha önce bu telefonla müşteri kaydı açtıysa üyelik o kayda bağlanır
       const { data: claimed, error } = await store.sb.rpc('customer_claim', { p_phone: pk }); if (error) throw error;
@@ -1384,7 +1385,7 @@ function openCustomer(id) {
         <div class="field full"><label for="e_addr">Adres</label><input id="e_addr" value="${esc(c.addr)}"></div>
         <div class="field full"><label for="e_notes">Portföy notu</label><textarea id="e_notes" placeholder="Sektör, sipariş sıklığı, tercihleri…">${esc(c.notes)}</textarea></div>
       </div>
-      <div class="acts"><button class="btn pri" type="submit">Kaydet</button>${id ? `<button class="btn" type="button" data-act="custToCart" data-id="${esc(id)}">Bu müşteriye teklif hazırla</button>` : ''}${id && isMgr() ? `<button class="btn danger" type="button" data-act="delCust" data-id="${esc(id)}">Sil</button>` : ''}</div>
+      <div class="acts"><button class="btn pri" type="submit">Kaydet</button>${id ? `<button class="btn" type="button" data-act="custToCart" data-id="${esc(id)}">Bu müşteriye teklif hazırla</button>` : ''}${id && c.hash ? `<button class="btn" type="button" data-act="resetCust" data-id="${esc(id)}">Üye şifresini sıfırla</button>` : ''}${id && isMgr() ? `<button class="btn danger" type="button" data-act="delCust" data-id="${esc(id)}">Sil</button>` : ''}</div>
     </form>
     <div class="box"><h3>Teklif geçmişi</h3>${id ? `<div class="nums" style="display:flex;gap:16px;font-size:14px"><span>${s.n} teklif</span><span>Toplam ${fmt(s.total)}</span><span style="color:var(--ok)">Kabul ${fmt(s.acc)}</span></div>` : ''}
       ${s.os.length ? `<div class="tbl-wrap"><table class="tbl" style="min-width:480px"><tbody>${s.os.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || '')).map(o => `<tr><td><button class="link" style="color:var(--text);font-size:14px" data-open="${esc(o.id)}">${esc(o.no)}</button></td><td class="num">${esc(fmtShort(o.createdAt))}</td><td>${esc(o.by?.name)}</td><td class="r">${fmt(o.total)}</td><td><span class="st" data-s="${esc(o.status)}">${esc(o.status)}</span></td></tr>`).join('')}</tbody></table></div>` : '<p class="hint">Bu müşteri için henüz teklif yok.</p>'}
@@ -1541,6 +1542,13 @@ document.addEventListener('click', async e => {
       custDraft = { name: c.name, contact: c.contact, phone: c.phone, email: c.email, addr: c.addr, note: '' }; ls.set('judiva.custDraft', custDraft);
       $('#custDlg').close(); closePanel(); toast(c.name + ' için ürün seçin'); location.hash = '#menu'; break;
     }
+    case 'resetCust':
+      if (!t.dataset.sure) { t.dataset.sure = '1'; t.textContent = 'Emin misiniz? Tekrar dokunun'; break; }
+      await safe(async () => {
+        if (store.sb) { const { error } = await store.sb.rpc('customer_reset', { p_id: id }); if (error) throw new Error(sbErr(error)); await sbLoad('customers'); await sbLoad('offers'); onStore(); }
+        else { const c = store.cache.customers.find(x => x.id === id); if (c) { delete c.hash; saveLocal('customers'); onStore(); } }
+      }, 'Şifre sıfırlandı. Müşteri aynı numarayla tekrar üye olup yeni şifre belirleyebilir.');
+      $('#custDlg').close(); break;
     case 'delCust':
       if (t.dataset.sure) { await safe(() => del('customers', id), 'Müşteri silindi'); $('#custDlg').close(); }
       else { t.dataset.sure = '1'; t.textContent = 'Silmek için tekrar dokunun'; }
