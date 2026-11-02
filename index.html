@@ -277,6 +277,8 @@ button.ccard:hover { border-color: var(--brass); }
 .box h3 { margin: 0; font-size: 16px; font-weight: 600; }
 .split { display: grid; grid-template-columns: minmax(0, 360px) minmax(0, 1fr); gap: 20px; align-items: start; }
 @media (max-width: 860px) { .split { grid-template-columns: 1fr; } }
+.dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: #d9534f; margin-right: 7px; vertical-align: 1px; }
+.dot.on { background: #3fb950; box-shadow: 0 0 6px #3fb950; }
 .chip { font-size: 11px; padding: 2px 8px; border-radius: 999px; background: var(--raised); color: var(--muted); white-space: nowrap; }
 .toast { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); translate: -50% 0; z-index: 60; background: var(--text); color: var(--bg); padding: 10px 18px; border-radius: 999px; font-size: 14px; font-weight: 500; box-shadow: 0 10px 30px rgba(0,0,0,.4); max-width: calc(100% - 32px); }
 .sync { font-size: 12px; color: var(--muted); }
@@ -624,7 +626,21 @@ async function initSupabase() {
   sb.channel('judiva').on('postgres_changes', { event: '*', schema: 'public' }, e => {
     const c = e.table; clearTimeout(t[c]); t[c] = setTimeout(async () => { await sbLoad(c); onStore(); }, 300);
   }).subscribe();
+  // Çevrim içi ekip: siteyi açık tutan personel/müdür yeşil görünür
+  store.online = new Set();
+  store.pres = sb.channel('judiva-online');
+  store.pres.on('presence', { event: 'sync' }, () => {
+    store.online = new Set(Object.values(store.pres.presenceState()).flat().map(p => p.tid).filter(Boolean)); paintOnline();
+  }).subscribe(st => { if (st === 'SUBSCRIBED') { store.presReady = true; syncPresence(); } });
   setSync('Kayıtlar Judiva veritabanında: personel ve müdür aynı teklifleri görür.');
+}
+function syncPresence() {
+  if (!store.pres || !store.presReady) return;
+  const id = isStaff() ? session.id : null; if (store.presId === id) return; store.presId = id;
+  id ? store.pres.track({ tid: id }) : store.pres.untrack();
+}
+function paintOnline() {
+  $$('[data-online]').forEach(d => { const on = store.online?.has(d.dataset.online); d.classList.toggle('on', on); d.title = on ? 'Şu an sitede' : 'Sitede değil'; });
 }
 async function initStore() {
   let db = null;
@@ -693,7 +709,7 @@ async function safe(fn, okMsg) {
 // Roller: misafir (giriş yok), uye (kayıtlı müşteri), personel, mudur. Oturum bu cihazda saklanır.
 let session = ls.get('judiva.session', { role: 'misafir' });
 if (!['misafir', 'uye', 'personel', 'mudur'].includes(session.role) || (session.role !== 'misafir' && !session.id)) session = { role: 'misafir' };
-function setSession(s) { session = s; ls.set('judiva.session', s); custDraft = {}; pickedCustomer = null; ls.set('judiva.custDraft', custDraft); renderRole(); renderCart(); }
+function setSession(s) { session = s; ls.set('judiva.session', s); syncPresence(); custDraft = {}; pickedCustomer = null; ls.set('judiva.custDraft', custDraft); renderRole(); renderCart(); }
 function isStaff() { return session.role === 'personel' || session.role === 'mudur'; }
 function isMgr() { return session.role === 'mudur'; }
 function users() { return store.sb ? store.cache.team : (store.settings.users || []); }
@@ -1305,7 +1321,7 @@ function renderPanel() {
   else if (tab === 'musteriler') b.innerHTML = customersView();
   else if (tab === 'kuponlar') b.innerHTML = couponsView();
   else if (tab === 'urunler') b.innerHTML = productsView();
-  else if (tab === 'personel') b.innerHTML = staffView();
+  else if (tab === 'personel') { b.innerHTML = staffView(); paintOnline(); }
   setSync($('#syncNote').textContent);
 }
 function newOfferView() {
@@ -1471,9 +1487,9 @@ function staffView() {
       <div class="field"><label for="st_pw">${store.sb ? 'İlk giriş şifresi *' : 'Şifre *'}</label><input id="st_pw" autocomplete="new-password" required></div>
       <div class="field full"><label for="st_role">Yetki</label><select id="st_role"><option value="personel">Personel: teklif hazırlar, kendi tekliflerini görür</option><option value="mudur">Müdür: her şeyi görür ve yönetir</option></select></div>
     </div><p class="msg bad" id="stErr" hidden></p><button class="btn pri" type="submit">Ekle</button></form>
-    <div class="box"><h3>Ekip</h3><div class="tbl-wrap"><table class="tbl" style="min-width:520px"><thead><tr><th>Ad</th><th>Kullanıcı adı</th><th>Yetki</th><th class="r">Teklif</th><th></th></tr></thead><tbody>${us.map(u => `<tr><td>${esc(u.name)}${u.id === session.id ? ' <span class="hint">(siz)</span>' : ''}</td><td class="num">${esc(u.username)}</td><td>${ROLE_TR[u.role]}${store.sb && !u.claimed ? `<br><span class="hint">İlk girişi bekliyor${u.tempPw ? ' · şifre: ' + esc(u.tempPw) : ''}</span>` : ''}</td><td class="r">${cnt(u.id)}</td>
+    <div class="box"><h3>Ekip</h3><div class="tbl-wrap"><table class="tbl" style="min-width:520px"><thead><tr><th>Ad</th><th>Kullanıcı adı</th><th>Yetki</th><th class="r">Teklif</th><th></th></tr></thead><tbody>${us.map(u => `<tr><td>${store.sb ? `<span class="dot" data-online="${esc(u.id)}"></span>` : ''}${esc(u.name)}${u.id === session.id ? ' <span class="hint">(siz)</span>' : ''}</td><td class="num">${esc(u.username)}</td><td>${ROLE_TR[u.role]}${store.sb && !u.claimed ? `<br><span class="hint">İlk girişi bekliyor${u.tempPw ? ' · şifre: ' + esc(u.tempPw) : ''}</span>` : ''}</td><td class="r">${cnt(u.id)}</td>
       <td class="r" style="white-space:nowrap"><button class="link" data-act="pwUser" data-id="${esc(u.id)}">${store.sb && u.id !== session.id ? 'Şifre sıfırla' : 'Şifre değiştir'}</button>${u.id !== session.id ? ` · <button class="link" data-act="delUser" data-id="${esc(u.id)}">Kaldır</button>` : ''}</td></tr>`).join('')}</tbody></table></div>
-      ${store.sb ? '<p class="hint">Yeni kişi, kullanıcı adı ve ilk giriş şifresiyle girer; ilk girişte kendi şifresini belirler. Şifresini unutan kişiye “Şifre sıfırla” ile yeni bir ilk giriş şifresi verin.</p>' : ''}
+      ${store.sb ? '<p class="hint"><span class="dot on"></span>Şu an sitede &nbsp; <span class="dot"></span>Sitede değil</p><p class="hint">Yeni kişi, kullanıcı adı ve ilk giriş şifresiyle girer; ilk girişte kendi şifresini belirler. Şifresini unutan kişiye “Şifre sıfırla” ile yeni bir ilk giriş şifresi verin.</p>' : ''}
       <form id="pwForm" class="fields" hidden style="margin-top:12px"><div class="field"><label for="pw_new" id="pwLbl">Yeni şifre</label><input id="pw_new" autocomplete="new-password"></div><div class="field" style="align-self:end"><button class="btn pri" type="submit">Şifreyi kaydet</button></div></form>
     </div>
     <form class="box" id="setForm"><h3>Ayarlar</h3><div class="fields"><div class="field"><label for="set_days">Teklif geçerlilik (gün)</label><input id="set_days" type="number" min="1" value="${esc(store.settings.validDays)}"></div></div><button class="btn" type="submit">Ayarları kaydet</button></form>
