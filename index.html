@@ -559,14 +559,15 @@ function toast(t) { const el = $('#toast'); el.textContent = t; el.hidden = fals
 
 /* ---------- Ürünler ---------- */
 const BASE = [];
-for (const c of CATS) for (const p of (MENU[c.key] || [])) BASE.push({ ...p, id: String(p.id), cat: c.key, img: p.big || null });
+const MEZE_ZAM = 1.5; // 2 Kasım 2026: tüm mezelere %50 zam
+for (const c of CATS) for (const p of (MENU[c.key] || [])) BASE.push({ ...p, id: String(p.id), cat: c.key, img: p.big || null, ...(c.key === 'mezeler' ? { price: Math.round(p.price * MEZE_ZAM) } : {}) });
 function unitOf(p) {
   if (p.unit) return p.unit;
   if ((p.d || []).some(x => /koli/i.test(x[0]))) return 'koli';
   return 'adet';
 }
 function detOf(p) { return (p.d || []).filter(x => !/porsiyon fiyat/i.test(x[0])).map(x => `${x[0]}: ${x[1]}`).join(' · '); }
-function allProducts() { return BASE.concat(store.cache.products.map(p => ({ ...p, custom: true }))); }
+function allProducts() { const pr = store.settings?.prices || {}; return BASE.map(p => pr[p.id] != null ? { ...p, basePrice: p.price, price: +pr[p.id] } : p).concat(store.cache.products.map(p => ({ ...p, custom: true }))); }
 function byId(id) { return allProducts().find(p => p.id === String(id)); }
 
 /* ---------- Kayıt alanı (paylaşımlı db, yoksa bu cihaz) ---------- */
@@ -1311,7 +1312,7 @@ function renderPanel() {
   if ($('#panel').hidden) return;
   const mgr = isMgr();
   $('#pnTitle').textContent = (mgr ? 'Müdür paneli · ' : 'Personel paneli · ') + session.name;
-  const tabs = [...(mgr ? [['ozet', 'Özet']] : []), ['yeni', 'Yeni teklif'], ['teklifler', mgr ? 'Teklifler' : 'Tekliflerim'], ['musteriler', 'Müşteriler'], ...(mgr ? [['kuponlar', 'İskontolar'], ['urunler', 'Ürün ekle'], ['personel', 'Kullanıcılar']] : [])];
+  const tabs = [...(mgr ? [['ozet', 'Özet']] : []), ['yeni', 'Yeni teklif'], ['teklifler', mgr ? 'Teklifler' : 'Tekliflerim'], ['musteriler', 'Müşteriler'], ...(mgr ? [['kuponlar', 'İskontolar'], ['urunler', 'Ürünler'], ['personel', 'Kullanıcılar']] : [])];
   if (!tabs.some(t => t[0] === tab)) tab = 'yeni';
   $('#tabs').innerHTML = tabs.map(([k, l]) => `<button data-tab="${k}" class="${k === tab ? 'on' : ''}">${l}</button>`).join('');
   const b = $('#pnBody');
@@ -1430,9 +1431,22 @@ function couponsView() {
         <td>${exp ? '<span class="st" data-s="Reddedildi">Süresi doldu</span>' : `<button class="st" data-s="${c.active === false ? 'Gönderildi' : 'Kabul edildi'}" data-act="toggleCp" data-id="${esc(c.id)}">${c.active === false ? 'Kapalı' : 'Aktif'}</button>`}</td>
         <td><button class="link" data-act="delCp" data-id="${esc(c.id)}">Sil</button></td></tr>`; }).join('')}</tbody></table></div>` : '<p class="hint">Henüz iskonto yok. Soldaki formla ilk iskontoyu oluşturun; müşteri sepette bu kodu girince indirim uygulanır.</p>'}</div></div>`;
 }
+let priceQ = '', priceCat = '';
+function priceRows() {
+  const q = norm(priceQ);
+  const list = allProducts().filter(p => (!priceCat || p.cat === priceCat) && (!q || norm(p.name).includes(q)));
+  return list.length ? `<div class="tbl-wrap"><table class="tbl" style="min-width:460px"><thead><tr><th>Ürün</th><th>Kategori</th><th class="r">Fiyat (₺)</th><th></th></tr></thead><tbody>${list.slice(0, 300).map(p => `<tr>
+    <td>${esc(p.name)}${p.custom ? ' <span class="chip">Yeni</span>' : ''}</td><td>${esc(CATS.find(c => c.key === p.cat)?.label || '')}</td>
+    <td class="r" style="white-space:nowrap"><input type="number" min="0" step="any" value="${+p.price}" data-price-id="${esc(p.id)}" aria-label="${esc(p.name)} fiyatı" style="width:110px;text-align:right;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:6px 8px"> / ${esc(unitOf(p))}</td>
+    <td>${p.basePrice != null ? `<button class="link" data-act="resetPrice" data-id="${esc(p.id)}" title="Eski fiyat: ${fmt(p.basePrice)}">Eski fiyata dön</button>` : ''}</td></tr>`).join('')}</tbody></table></div>` : '<p class="hint">Bu aramayla eşleşen ürün yok.</p>';
+}
 function productsView() {
   const list = store.cache.products;
-  return `<div class="split">
+  return `<div class="box" style="margin-bottom:16px"><h3>Fiyatlar</h3>
+    <p class="hint">Fiyatı değiştirip Enter'a basın ya da kutudan çıkın; menüde ve yeni tekliflerde hemen geçerli olur. Önceden hazırlanmış teklifler değişmez.</p>
+    <div class="filters"><input id="pp_q" type="search" placeholder="Ürün ara" value="${esc(priceQ)}"><select id="pp_cat"><option value="">Tüm kategoriler</option>${CATS.map(c => `<option value="${c.key}"${priceCat === c.key ? ' selected' : ''}>${c.label}</option>`).join('')}</select></div>
+    <div id="ppList">${priceRows()}</div></div>
+  <div class="split">
     <form class="box" id="prForm"><h3>Menüye ürün ekle</h3>
       <div class="fields">
         <div class="field full"><label for="pr_name">Ürün adı *</label><input id="pr_name" required></div>
@@ -1569,6 +1583,7 @@ document.addEventListener('click', async e => {
         else { const c = store.cache.customers.find(x => x.id === id); if (c) { delete c.hash; saveLocal('customers'); onStore(); } }
       }, 'Şifre sıfırlandı. Müşteri aynı numarayla tekrar üye olup yeni şifre belirleyebilir.');
       $('#custDlg').close(); break;
+    case 'resetPrice': { const pr = { ...(store.settings.prices || {}) }; delete pr[id]; await safe(() => putSettings({ prices: pr }), 'Eski fiyata dönüldü'); break; }
     case 'delOffer':
       if (t.dataset.sure) { if (await safe(() => del('offers', id), 'Teklif silindi') !== false && $('#offerDlg').open) $('#offerDlg').close(); }
       else { t.dataset.sure = '1'; t.dataset.txt ||= t.textContent; t.textContent = 'Emin misiniz?'; t.style.color = t.style.borderColor = 'var(--bad)'; setTimeout(() => { if (t.isConnected) { delete t.dataset.sure; t.textContent = t.dataset.txt; t.style.color = t.style.borderColor = ''; } }, 4000); }
@@ -1609,6 +1624,13 @@ document.addEventListener('change', async e => {
     ls.set('judiva.custDraft', custDraft); renderCart();
   }
   if (t.id === 'of_staff') { offerFilter.staff = t.value; renderPanel(); }
+  if (t.id === 'pp_cat') { priceCat = t.value; $('#ppList').innerHTML = priceRows(); }
+  if (t.dataset.priceId) {
+    const id = t.dataset.priceId, v = +t.value, p = byId(id);
+    if (!p || !(v >= 0) || t.value === '' || v === +p.price) return;
+    if (p.custom) await safe(() => patch('products', id, { price: v }), p.name + ': ' + fmt(v));
+    else await safe(() => putSettings({ prices: { ...(store.settings.prices || {}), [id]: v } }), p.name + ': ' + fmt(v));
+  }
   if (t.id === 'of_status') { offerFilter.status = t.value; renderPanel(); }
 });
 document.addEventListener('input', e => {
@@ -1617,6 +1639,7 @@ document.addEventListener('input', e => {
   if (t.id === 'sfQ') { sofraQ = t.value; renderSofraTiles(); }
   if (t.id === 'q') { clearTimeout(renderMenu.t); renderMenu.t = setTimeout(renderMenu, 160); }
   if (t.id?.startsWith('c_')) readCustForm();
+  if (t.id === 'pp_q') { priceQ = t.value; $('#ppList').innerHTML = priceRows(); }
   if (t.id === 'of_q') { offerFilter.q = t.value; clearTimeout(renderPanel.t); renderPanel.t = setTimeout(() => { renderPanel(); const el = $('#of_q'); el.focus(); el.setSelectionRange(el.value.length, el.value.length); }, 250); }
   if (t.id === 'cu_q') { custQ = t.value; clearTimeout(renderPanel.t); renderPanel.t = setTimeout(() => { renderPanel(); const el = $('#cu_q'); el.focus(); el.setSelectionRange(el.value.length, el.value.length); }, 250); }
 });
