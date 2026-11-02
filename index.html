@@ -559,7 +559,7 @@ function toast(t) { const el = $('#toast'); el.textContent = t; el.hidden = fals
 
 /* ---------- Ürünler ---------- */
 const BASE = [];
-const MEZE_ZAM = 1.5; // 2 Kasım 2026: tüm mezelere %50 zam
+const MEZE_ZAM = 1; // mezelere toplu zam oranı (1 = zam yok)
 for (const c of CATS) for (const p of (MENU[c.key] || [])) BASE.push({ ...p, id: String(p.id), cat: c.key, img: p.big || null, ...(c.key === 'mezeler' ? { price: Math.round(p.price * MEZE_ZAM) } : {}) });
 function unitOf(p) {
   if (p.unit) return p.unit;
