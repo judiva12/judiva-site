@@ -851,8 +851,13 @@ let couponCode = ls.get('judiva.coupon', '');
 let custDraft = ls.get('judiva.custDraft', {});
 let pickedCustomer = null;
 function saveCart() { ls.set('judiva.cart', cart); ls.set('judiva.coupon', couponCode); }
+// Kilo ile satılan ürünlerde sepete en az 2 kg eklenir
+const MIN_KG = 2;
+const minQty = p => p && unitOf(p) === 'kg' ? MIN_KG : 0;
 function setQty(id, qty) {
   qty = Math.max(0, Math.round((+qty || 0) * 100) / 100);
+  const min = minQty(byId(id));
+  if (qty > 0 && qty < min) { qty = min; toast('En az ' + min + ' kg eklenebilir'); }
   const i = cart.findIndex(l => l.id === id);
   if (qty <= 0) { if (i >= 0) cart.splice(i, 1); }
   else if (i >= 0) cart[i].qty = qty; else cart.push({ id, qty });
@@ -1107,9 +1112,10 @@ function refreshProduct() {
 $('#prodDlg').addEventListener('close', () => { curProd = null; if (location.hash.startsWith('#urun-')) history.replaceState(null, '', '#menu'); });
 
 /* ---------- Meze sofrası kur ---------- */
-const SIZES = [{ kg: .5, label: '500 g', sub: 'Az kişi', r: 16 }, { kg: 1, label: '1 kg', sub: 'Orta sofra', r: 22 }, { kg: 2, label: '2 kg', sub: 'Kalabalık', r: 28 }];
+const SIZES = [{ kg: 2, label: '2 kg', sub: 'Az kişi', r: 16 }, { kg: 3, label: '3 kg', sub: 'Orta sofra', r: 22 }, { kg: 5, label: '5 kg', sub: 'Kalabalık', r: 28 }];
 const SLOTS = [[24, 30, 25], [52, 24, 24], [79, 32, 25], [33, 63, 27], [65, 60, 28], [88, 69, 20], [11, 66, 19], [50, 86, 19], [74, 90, 17], [12, 33, 16], [91, 15, 14], [8, 10, 13]];
-let sofra = ls.get('judiva.sofra', { kg: 1, sel: [] });
+let sofra = ls.get('judiva.sofra', { kg: 2, sel: [] });
+if (!SIZES.some(z => z.kg === sofra.kg)) sofra.kg = 2;
 let sofraQ = '', sofraTab = 'mezeler';
 // Sofrada sunulan seçki: 15 meze, 10 pasta, 4 içecek
 const SOFRA_SET = {
@@ -1532,9 +1538,9 @@ document.addEventListener('click', async e => {
   if (t.dataset.open) { const o = store.cache.offers.find(x => x.id === t.dataset.open); if (o) { $('#custDlg').open && $('#custDlg').close(); $('#roleDlg').open && $('#roleDlg').close(); openOffer(o); } return; }
   if (t.dataset.cust) { openCustomer(t.dataset.cust); return; }
   switch (t.dataset.act) {
-    case 'add': setQty(id, 1); toast('Sepete eklendi'); break;
+    case 'add': { const min = minQty(byId(id)); setQty(id, min || 1); toast(min ? 'Sepete eklendi (' + min + ' kg)' : 'Sepete eklendi'); break; }
     case 'inc': { const l = cart.find(l => l.id === id); setQty(id, (l?.qty || 0) + 1); break; }
-    case 'dec': { const l = cart.find(l => l.id === id); setQty(id, (l?.qty || 0) - 1); break; }
+    case 'dec': { const l = cart.find(l => l.id === id); const q = (l?.qty || 0) - 1; setQty(id, q < minQty(byId(id)) ? 0 : q); break; }
     case 'rm': setQty(id, 0); break;
     case 'cart': openCart(); break;
     case 'sfSize': sofra.kg = +t.dataset.kg; saveSofra(); renderSofra(); break;
