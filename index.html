@@ -674,7 +674,7 @@ async function patch(c, id, data) {
   saveLocal(c); onStore();
 }
 async function del(c, id) {
-  if (store.sb) { await sbWrite(store.sb.from(c).delete().eq('id', id)); await sbLoad(c); onStore(); return; }
+  if (store.sb) { await sbWrite(store.sb.from(c).delete().eq('id', id)); await sbLoad(c); onStore(); if (store.cache[c].some(x => x.id === id)) throw new Error('Bu işlem için yetkiniz yok.'); return; }
   if (store.db) return store.db.collection(c).doc(id).delete();
   store.cache[c] = store.cache[c].filter(x => x.id !== id); saveLocal(c); onStore();
 }
@@ -995,7 +995,8 @@ function openOffer(o, fresh) {
   const staff = isStaff();
   $('#offerActs').innerHTML = `<button class="btn pri" data-act="pdf">PDF indir</button>
     ${staff && !fresh ? `<label class="field" style="display:flex;align-items:center;gap:8px"><span class="hint">Durum</span><select class="st" data-s="${esc(o.status)}" data-status="${esc(o.id)}">${STATUSES.map(s => `<option${s === o.status ? ' selected' : ''}>${s}</option>`).join('')}</select></label>` : ''}
-    <button class="btn" data-act="reorder">Sepete yeniden yükle</button>`;
+    <button class="btn" data-act="reorder">Sepete yeniden yükle</button>
+    ${staff && !fresh && (isMgr() || o.by?.staffId === session.id) ? `<button class="btn danger" data-act="delOffer" data-id="${esc(o.id)}">Teklifi sil</button>` : ''}`;
   $('#pdfMsg').hidden = true;
   $('#docFit').innerHTML = docHTML(o);
   const dlg = $('#offerDlg'); if (!dlg.open) dlg.showModal();
@@ -1553,8 +1554,8 @@ document.addEventListener('click', async e => {
       }, 'Şifre sıfırlandı. Müşteri aynı numarayla tekrar üye olup yeni şifre belirleyebilir.');
       $('#custDlg').close(); break;
     case 'delOffer':
-      if (t.dataset.sure) await safe(() => del('offers', id), 'Teklif silindi');
-      else { t.dataset.sure = '1'; t.textContent = 'Emin misiniz?'; t.style.color = t.style.borderColor = 'var(--bad)'; setTimeout(() => { if (t.isConnected) { delete t.dataset.sure; t.textContent = 'Sil'; t.style.color = t.style.borderColor = ''; } }, 4000); }
+      if (t.dataset.sure) { if (await safe(() => del('offers', id), 'Teklif silindi') !== false && $('#offerDlg').open) $('#offerDlg').close(); }
+      else { t.dataset.sure = '1'; t.dataset.txt ||= t.textContent; t.textContent = 'Emin misiniz?'; t.style.color = t.style.borderColor = 'var(--bad)'; setTimeout(() => { if (t.isConnected) { delete t.dataset.sure; t.textContent = t.dataset.txt; t.style.color = t.style.borderColor = ''; } }, 4000); }
       break;
     case 'delCust':
       if (t.dataset.sure) { await safe(() => del('customers', id), 'Müşteri silindi'); $('#custDlg').close(); }
