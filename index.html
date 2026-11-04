@@ -869,6 +869,15 @@ function findCoupon(code) {
   const c = code.trim().toUpperCase();
   return store.cache.coupons.find(x => String(x.code).toUpperCase() === c);
 }
+// Müşteri iskonto listesini göremez: kayıtlı kod önbellekte yoksa sunucudan sorgula
+const cpAsked = new Set();
+async function ensureCoupon() {
+  const code = couponCode;
+  if (!store.sb || !code || isStaff() || findCoupon(code) || cpAsked.has(code)) return;
+  cpAsked.add(code); // aynı anda iki kez sorma
+  const { data } = await store.sb.rpc('coupon_check', { p_code: code });
+  if (data) { cpAsked.delete(code); store.cache.coupons = [...store.cache.coupons.filter(c => c.id !== data.id), data]; renderCart(); }
+}
 function couponCheck(code, subtotal) {
   if (!code) return { ok: false, discount: 0 };
   const c = findCoupon(code);
@@ -886,6 +895,7 @@ function totals() {
   return { lines, subtotal, cc, discount: cc.discount, total: subtotal - cc.discount };
 }
 function renderCart() {
+  ensureCoupon();
   const n = cart.length;
   $('#cartCount').textContent = n; $('#fabCount').textContent = n;
   $('#fab').classList.toggle('show', n > 0);
@@ -981,7 +991,7 @@ async function makeOffer() {
   const ok = await safe(async () => { await put('customers', custId, custRec); await put('offers', no, offer); });
   btn.disabled = false; btn.textContent = 'Teklifi oluştur ve PDF hazırla';
   if (!ok) return;
-  cart = []; couponCode = ''; pickedCustomer = null; custDraft = isStaff() ? {} : { ...d, note: '' }; ls.set('judiva.custDraft', custDraft); saveCart();
+  cart = []; pickedCustomer = null; custDraft = isStaff() ? {} : { ...d, note: '' }; ls.set('judiva.custDraft', custDraft); saveCart();
   renderMenu(); renderCart(); closeCart();
   openOffer({ ...offer, id: no }, true);
 }
@@ -1559,7 +1569,7 @@ document.addEventListener('click', async e => {
     case 'applyCoupon': {
       couponCode = $('#coupon').value.trim().toUpperCase();
       // Müşteri iskonto listesini göremez; yazdığı kod sunucuda sorgulanır
-      if (store.sb && !isStaff() && couponCode) { const { data } = await store.sb.rpc('coupon_check', { p_code: couponCode }); if (data) store.cache.coupons = [...store.cache.coupons.filter(c => c.id !== data.id), data]; }
+      if (store.sb && !isStaff() && couponCode) { cpAsked.delete(couponCode); await ensureCoupon(); }
       saveCart(); renderCart(); break;
     }
     case 'clearCoupon': couponCode = ''; saveCart(); renderCart(); break;
