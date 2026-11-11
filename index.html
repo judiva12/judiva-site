@@ -579,6 +579,8 @@ function baseEdited(p) {
   let x = p;
   if (pr[p.id] != null) x = { ...x, basePrice: p.price, price: +pr[p.id] };
   if (nm[p.id]) x = { ...x, baseName: p.name, name: nm[p.id] };
+  const im = st.imgs || {};
+  if (im[p.id]) x = { ...x, baseImg: p.img, img: im[p.id] };
   return x;
 }
 function hiddenIds() { return new Set(store.settings?.hidden || []); }
@@ -1468,7 +1470,8 @@ let priceQ = '', priceCat = '';
 function priceRows() {
   const q = norm(priceQ);
   const list = allProducts().filter(p => (!priceCat || p.cat === priceCat) && (!q || norm(p.name).includes(q)));
-  return list.length ? `<div class="tbl-wrap"><table class="tbl" style="min-width:460px"><thead><tr><th>Ürün adı</th><th>Kategori</th><th class="r">Fiyat (₺)</th><th></th></tr></thead><tbody>${list.slice(0, 300).map(p => `<tr>
+  return list.length ? `<div class="tbl-wrap"><table class="tbl" style="min-width:460px"><thead><tr><th>Foto</th><th>Ürün adı</th><th>Kategori</th><th class="r">Fiyat (₺)</th><th></th></tr></thead><tbody>${list.slice(0, 300).map(p => `<tr>
+    <td style="width:64px"><label title="Fotoğrafı değiştir" style="display:block;width:52px;height:52px;border-radius:10px;overflow:hidden;cursor:pointer;background:var(--raised);position:relative">${p.img ? `<img src="${esc(p.img)}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover">` : '<span class="mono" style="font-size:20px;display:grid;place-items:center;height:100%">J</span>'}<span style="position:absolute;inset:auto 0 0 0;background:rgba(0,0,0,.6);color:#fff;font-size:10px;text-align:center">${p.img ? 'Değiştir' : 'Ekle'}</span><input type="file" accept="image/*" data-img-id="${esc(p.id)}" hidden></label>${p.baseImg !== undefined ? `<button class="link" style="font-size:11px" data-act="resetImg" data-id="${esc(p.id)}">Eskisi</button>` : ''}</td>
     <td><input data-name-id="${esc(p.id)}" value="${esc(p.name)}" aria-label="Ürün adı" style="width:100%;min-width:180px;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:6px 8px">${p.custom ? ' <span class="chip">Yeni</span>' : ''}</td><td>${esc(CATS.find(c => c.key === p.cat)?.label || '')}</td>
     <td class="r" style="white-space:nowrap"><input type="number" min="0" step="any" value="${hasPrice(p) ? +p.price : ''}" placeholder="—" data-price-id="${esc(p.id)}" aria-label="${esc(p.name)} fiyatı" style="width:110px;text-align:right;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:6px 8px"> / ${esc(unitOf(p))} <button class="btn sm" type="button" data-act="saveRow" data-id="${esc(p.id)}">Kaydet</button>
       <label style="display:inline-flex;align-items:center;gap:4px;margin-left:6px;font-size:12px;cursor:pointer"><input type="checkbox" data-ask-id="${esc(p.id)}"${hasPrice(p) ? '' : ' checked'}>${ASK}</label></td>
@@ -1482,7 +1485,7 @@ function hiddenList() {
 function productsView() {
   const list = store.cache.products;
   return `<div class="box" style="margin-bottom:16px"><h3>Ürünler ve fiyatlar</h3>
-    <p class="hint">Adı ya da fiyatı değiştirip satırdaki <b>Kaydet</b>'e basın (Enter da olur). Fiyat vermeyeceğiniz ürünlerde “Fiyat sorunuz” kutusunu işaretlemeniz yeterli, hemen kaydedilir. Değişiklikler menüde ve yeni tekliflerde hemen geçerli olur. Önceden hazırlanmış teklifler değişmez.</p>
+    <p class="hint">Adı ya da fiyatı değiştirip satırdaki <b>Kaydet</b>'e basın (Enter da olur). Fotoğrafı değiştirmek için ürünün resmine dokunun. Fiyat vermeyeceğiniz ürünlerde “Fiyat sorunuz” kutusunu işaretlemeniz yeterli, hemen kaydedilir. Değişiklikler menüde ve yeni tekliflerde hemen geçerli olur. Önceden hazırlanmış teklifler değişmez.</p>
     <div class="filters"><input id="pp_q" type="search" placeholder="Ürün ara" value="${esc(priceQ)}"><select id="pp_cat"><option value="">Tüm kategoriler</option>${CATS.map(c => `<option value="${c.key}"${priceCat === c.key ? ' selected' : ''}>${c.label}</option>`).join('')}</select></div>
     <div id="ppList">${priceRows()}</div>${hiddenList()}</div>
   <div class="split">
@@ -1547,6 +1550,33 @@ function staffView() {
     </div>
     <form class="box" id="setForm"><h3>Ayarlar</h3><div class="fields"><div class="field"><label for="set_days">Teklif geçerlilik (gün)</label><input id="set_days" type="number" min="1" value="${esc(store.settings.validDays)}"></div></div><button class="btn" type="submit">Ayarları kaydet</button></form>
   </div>`;
+}
+// Ürün fotoğrafı: küçültülür; Supabase'de "urunler" deposuna yüklenip adresi döner, yerelde data adresi olarak saklanır
+function shrinkToBlob(file, max = 900) {
+  return new Promise((res, rej) => {
+    const u = URL.createObjectURL(file); const im = new Image();
+    im.onload = () => { const s = Math.min(1, max / Math.max(im.width, im.height)); const c = document.createElement('canvas');
+      c.width = Math.round(im.width * s); c.height = Math.round(im.height * s); c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(u); c.toBlob(b => b ? res(b) : rej(new Error('Fotoğraf okunamadı')), 'image/jpeg', .82); };
+    im.onerror = () => { URL.revokeObjectURL(u); rej(new Error('Fotoğraf okunamadı. JPG veya PNG deneyin.')); }; im.src = u;
+  });
+}
+async function uploadProductImage(file, id) {
+  const blob = await shrinkToBlob(file);
+  if (!store.sb) return await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(blob); });
+  const path = `${id}-${Date.now()}.jpg`;
+  const { error } = await store.sb.storage.from('urunler').upload(path, blob, { contentType: 'image/jpeg' });
+  if (error) throw new Error(/bucket|not found/i.test(error.message) ? 'Fotoğraf deposu kurulmamış (guncelleme-5.sql çalıştırılmalı).' : sbErr(error));
+  return store.sb.storage.from('urunler').getPublicUrl(path).data.publicUrl;
+}
+async function setProductImage(id, file) {
+  const p = byId(id); if (!p || !file) return;
+  toast('Fotoğraf yükleniyor…');
+  await safe(async () => {
+    const url = await uploadProductImage(file, id);
+    if (p.custom) await patch('products', id, { img: url });
+    else await putSettings({ imgs: { ...(store.settings.imgs || {}), [id]: url } });
+  }, p.name + ' fotoğrafı güncellendi');
 }
 function resizeImage(file) {
   return new Promise((res, rej) => {
@@ -1624,6 +1654,7 @@ document.addEventListener('click', async e => {
       }, 'Şifre sıfırlandı. Müşteri aynı numarayla tekrar üye olup yeni şifre belirleyebilir.');
       $('#custDlg').close(); break;
     case 'saveRow': await saveRow(id); break;
+    case 'resetImg': { const im = { ...(store.settings.imgs || {}) }; delete im[id]; await safe(() => putSettings({ imgs: im }), 'Eski fotoğrafa dönüldü'); break; }
     case 'resetName': { const nm = { ...(store.settings.names || {}) }; delete nm[id]; await safe(() => putSettings({ names: nm }), 'Eski ada dönüldü'); break; }
     case 'restoreProduct': await safe(() => putSettings({ hidden: (store.settings.hidden || []).filter(x => x !== id) }), 'Ürün menüye geri geldi'); break;
     case 'delProduct': {
@@ -1676,6 +1707,7 @@ document.addEventListener('change', async e => {
   }
   if (t.id === 'of_staff') { offerFilter.staff = t.value; renderPanel(); }
   if (t.id === 'pp_cat') { priceCat = t.value; $('#ppList').innerHTML = priceRows(); }
+  if (t.dataset.imgId && t.files?.[0]) await setProductImage(t.dataset.imgId, t.files[0]);
   if (t.dataset.askId) {
     const id = t.dataset.askId, pi = document.querySelector(`[data-price-id="${CSS.escape(id)}"]`);
     if (t.checked) { if (pi) pi.value = ''; await saveRow(id); }
@@ -1735,10 +1767,11 @@ document.addEventListener('submit', async e => {
     const err = $('#prErr'); const price = +v('pr_price');
     if (!v('pr_name') || !(price >= 0)) { err.textContent = 'Ürün adı gerekli; fiyat boş bırakılabilir.'; err.hidden = false; return; }
     let img = null; const file = $('#pr_img').files[0];
-    if (file) { try { img = await resizeImage(file); } catch { err.textContent = 'Fotoğraf okunamadı. JPG veya PNG deneyin.'; err.hidden = false; return; } }
+    const pid = uid('c_');
+    if (file) { try { img = await uploadProductImage(file, pid); } catch (e) { err.textContent = e.message || 'Fotoğraf okunamadı. JPG veya PNG deneyin.'; err.hidden = false; return; } }
     const det = v('pr_det');
     const d = det ? det.split('·').map(s => s.split(':')).map(([a, b]) => b !== undefined ? [a.trim(), b.trim()] : ['Not', a.trim()]) : [];
-    await safe(() => put('products', uid('c_'), { name: v('pr_name'), cat: $('#pr_cat').value, unit: $('#pr_unit').value, price, img, d, createdAt: new Date().toISOString() }), 'Ürün menüye eklendi');
+    await safe(() => put('products', pid, { name: v('pr_name'), cat: $('#pr_cat').value, unit: $('#pr_unit').value, price, img, d, createdAt: new Date().toISOString() }), 'Ürün menüye eklendi');
   }
   if (f.id === 'lgCust') loginCustomer();
   if (f.id === 'lgReg') registerCustomer();
@@ -1787,7 +1820,7 @@ function observeChapters() { io.disconnect(); $$('.chapter').forEach(s => io.obs
 let lastSig = '';
 function renderAll() {
   const st = store.settings || {};
-  const sig = JSON.stringify([store.cache.products.map(p => p.id + p.price + p.name), st.prices, st.names, st.hidden]);
+  const sig = JSON.stringify([store.cache.products.map(p => p.id + p.price + p.name), st.prices, st.names, st.hidden, st.imgs]);
   if (sig !== lastSig) { lastSig = sig; renderMenu(); }
   checkSession(); renderRole();
   if (!document.activeElement?.closest('#drawer, #pnCartBody, #pnCartFoot')) renderCart();
