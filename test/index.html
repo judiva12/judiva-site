@@ -127,6 +127,7 @@ main { padding-block: 24px 120px; display: grid; gap: 72px; }
 .price small { color: var(--muted); font-weight: 400; font-size: 12px; }
 .add { background: var(--wine); border: 0; border-radius: 999px; padding: 6px 12px; font-size: 13px; font-weight: 500; display: inline-flex; gap: 6px; align-items: center; }
 .add:hover { background: var(--wine-hi); }
+.add.in-cart { background: transparent; border: 1px solid var(--brass); color: var(--brass); }
 .step { display: inline-flex; align-items: center; border: 1px solid var(--brass); border-radius: 999px; overflow: hidden; }
 .step button { background: transparent; border: 0; width: 30px; height: 30px; font-size: 16px; }
 .step button:hover { background: var(--raised); }
@@ -848,7 +849,7 @@ function cardHTML(p) {
 }
 function ctrlHTML(p, line) {
   if (!line) return `<button class="add" data-act="add" data-id="${esc(p.id)}">+ Sepete ekle</button>`;
-  return `<span class="step"><button data-act="dec" data-id="${esc(p.id)}" aria-label="Azalt">−</button><input type="number" inputmode="decimal" min="0" step="any" value="${line.qty}" data-qty="${esc(p.id)}" aria-label="${esc(p.name)} miktarı"><button data-act="inc" data-id="${esc(p.id)}" aria-label="Artır">+</button></span>`;
+  return `<span class="step"><button data-act="dec" data-id="${esc(p.id)}" aria-label="Azalt">−</button><input type="number" inputmode="decimal" min="0" step="any" value="${line.qty}" data-qty="${esc(p.id)}" aria-label="${esc(p.name)} miktarı"><button data-act="inc" data-id="${esc(p.id)}" aria-label="Artır">+</button></span><button class="add in-cart" data-act="goCart" title="Sepeti aç">✓ Sepete eklendi</button>`;
 }
 function refreshCard(id) {
   $$(`.pcard[data-id="${CSS.escape(id)}"], .prow[data-id="${CSS.escape(id)}"]`).forEach(el => {
@@ -1469,7 +1470,8 @@ function priceRows() {
   const list = allProducts().filter(p => (!priceCat || p.cat === priceCat) && (!q || norm(p.name).includes(q)));
   return list.length ? `<div class="tbl-wrap"><table class="tbl" style="min-width:460px"><thead><tr><th>Ürün adı</th><th>Kategori</th><th class="r">Fiyat (₺)</th><th></th></tr></thead><tbody>${list.slice(0, 300).map(p => `<tr>
     <td><input data-name-id="${esc(p.id)}" value="${esc(p.name)}" aria-label="Ürün adı" style="width:100%;min-width:180px;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:6px 8px">${p.custom ? ' <span class="chip">Yeni</span>' : ''}</td><td>${esc(CATS.find(c => c.key === p.cat)?.label || '')}</td>
-    <td class="r" style="white-space:nowrap"><input type="number" min="0" step="any" value="${hasPrice(p) ? +p.price : ''}" placeholder="${ASK}" data-price-id="${esc(p.id)}" aria-label="${esc(p.name)} fiyatı" style="width:110px;text-align:right;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:6px 8px"> / ${esc(unitOf(p))} <button class="btn sm" type="button" data-act="saveRow" data-id="${esc(p.id)}">Kaydet</button></td>
+    <td class="r" style="white-space:nowrap"><input type="number" min="0" step="any" value="${hasPrice(p) ? +p.price : ''}" placeholder="—" data-price-id="${esc(p.id)}" aria-label="${esc(p.name)} fiyatı" style="width:110px;text-align:right;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:6px 8px"> / ${esc(unitOf(p))} <button class="btn sm" type="button" data-act="saveRow" data-id="${esc(p.id)}">Kaydet</button>
+      <label style="display:inline-flex;align-items:center;gap:4px;margin-left:6px;font-size:12px;cursor:pointer"><input type="checkbox" data-ask-id="${esc(p.id)}"${hasPrice(p) ? '' : ' checked'}>${ASK}</label></td>
     <td style="white-space:nowrap">${p.basePrice != null ? `<button class="link" data-act="resetPrice" data-id="${esc(p.id)}" title="Eski fiyat: ${fmt(p.basePrice)}">Eski fiyat</button> · ` : ''}${p.baseName ? `<button class="link" data-act="resetName" data-id="${esc(p.id)}" title="Eski ad: ${esc(p.baseName)}">Eski ad</button> · ` : ''}<button class="btn danger sm" type="button" data-act="delProduct" data-id="${esc(p.id)}">Sil</button></td></tr>`).join('')}</tbody></table></div>` : '<p class="hint">Bu aramayla eşleşen ürün yok.</p>';
 }
 function hiddenList() {
@@ -1480,7 +1482,7 @@ function hiddenList() {
 function productsView() {
   const list = store.cache.products;
   return `<div class="box" style="margin-bottom:16px"><h3>Ürünler ve fiyatlar</h3>
-    <p class="hint">Adı ya da fiyatı değiştirip satırdaki <b>Kaydet</b>'e basın (Enter da olur). Fiyatı boş bırakırsanız menüde “Fiyat sorunuz” yazar. Değişiklikler menüde ve yeni tekliflerde hemen geçerli olur. Önceden hazırlanmış teklifler değişmez.</p>
+    <p class="hint">Adı ya da fiyatı değiştirip satırdaki <b>Kaydet</b>'e basın (Enter da olur). Fiyat vermeyeceğiniz ürünlerde “Fiyat sorunuz” kutusunu işaretlemeniz yeterli, hemen kaydedilir. Değişiklikler menüde ve yeni tekliflerde hemen geçerli olur. Önceden hazırlanmış teklifler değişmez.</p>
     <div class="filters"><input id="pp_q" type="search" placeholder="Ürün ara" value="${esc(priceQ)}"><select id="pp_cat"><option value="">Tüm kategoriler</option>${CATS.map(c => `<option value="${c.key}"${priceCat === c.key ? ' selected' : ''}>${c.label}</option>`).join('')}</select></div>
     <div id="ppList">${priceRows()}</div>${hiddenList()}</div>
   <div class="split">
@@ -1569,6 +1571,7 @@ document.addEventListener('click', async e => {
   if (t.dataset.open) { const o = store.cache.offers.find(x => x.id === t.dataset.open); if (o) { $('#custDlg').open && $('#custDlg').close(); $('#roleDlg').open && $('#roleDlg').close(); openOffer(o); } return; }
   if (t.dataset.cust) { openCustomer(t.dataset.cust); return; }
   switch (t.dataset.act) {
+    case 'goCart': if (!$('#panel').hidden) toast('Ürün sepette'); else openCart(); break;
     case 'add': { const min = minQty(byId(id)); setQty(id, min || 1); toast(min ? 'Sepete eklendi (' + min + ' kg)' : 'Sepete eklendi'); break; }
     case 'inc': { const l = cart.find(l => l.id === id); setQty(id, (l?.qty || 0) + 1); break; }
     case 'dec': { const l = cart.find(l => l.id === id); const q = (l?.qty || 0) - 1; setQty(id, q < minQty(byId(id)) ? 0 : q); break; }
@@ -1673,6 +1676,11 @@ document.addEventListener('change', async e => {
   }
   if (t.id === 'of_staff') { offerFilter.staff = t.value; renderPanel(); }
   if (t.id === 'pp_cat') { priceCat = t.value; $('#ppList').innerHTML = priceRows(); }
+  if (t.dataset.askId) {
+    const id = t.dataset.askId, pi = document.querySelector(`[data-price-id="${CSS.escape(id)}"]`);
+    if (t.checked) { if (pi) pi.value = ''; await saveRow(id); }
+    else if (pi) { pi.focus(); toast('Fiyatı yazıp Kaydet\'e basın.'); }
+  }
   if (t.id === 'of_status') { offerFilter.status = t.value; renderPanel(); }
 });
 async function saveRow(id) {
