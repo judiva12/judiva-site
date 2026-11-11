@@ -568,7 +568,15 @@ function unitOf(p) {
   return 'adet';
 }
 function detOf(p) { return (p.d || []).filter(x => !/porsiyon fiyat/i.test(x[0])).map(x => `${x[0]}: ${x[1]}`).join(' · '); }
-function allProducts() { const pr = store.settings?.prices || {}; return BASE.map(p => pr[p.id] != null ? { ...p, basePrice: p.price, price: +pr[p.id] } : p).concat(store.cache.products.map(p => ({ ...p, custom: true }))); }
+function baseEdited(p) {
+  const st = store.settings || {}, pr = st.prices || {}, nm = st.names || {};
+  let x = p;
+  if (pr[p.id] != null) x = { ...x, basePrice: p.price, price: +pr[p.id] };
+  if (nm[p.id]) x = { ...x, baseName: p.name, name: nm[p.id] };
+  return x;
+}
+function hiddenIds() { return new Set(store.settings?.hidden || []); }
+function allProducts() { const hid = hiddenIds(); return BASE.filter(p => !hid.has(p.id)).map(baseEdited).concat(store.cache.products.map(p => ({ ...p, custom: true }))); }
 function byId(id) { return allProducts().find(p => p.id === String(id)); }
 
 /* ---------- Kayıt alanı (paylaşımlı db, yoksa bu cihaz) ---------- */
@@ -1452,17 +1460,22 @@ let priceQ = '', priceCat = '';
 function priceRows() {
   const q = norm(priceQ);
   const list = allProducts().filter(p => (!priceCat || p.cat === priceCat) && (!q || norm(p.name).includes(q)));
-  return list.length ? `<div class="tbl-wrap"><table class="tbl" style="min-width:460px"><thead><tr><th>Ürün</th><th>Kategori</th><th class="r">Fiyat (₺)</th><th></th></tr></thead><tbody>${list.slice(0, 300).map(p => `<tr>
-    <td>${esc(p.name)}${p.custom ? ' <span class="chip">Yeni</span>' : ''}</td><td>${esc(CATS.find(c => c.key === p.cat)?.label || '')}</td>
-    <td class="r" style="white-space:nowrap"><input type="number" min="0" step="any" value="${+p.price}" data-price-id="${esc(p.id)}" aria-label="${esc(p.name)} fiyatı" style="width:110px;text-align:right;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:6px 8px"> / ${esc(unitOf(p))} <button class="btn sm" type="button" data-act="savePrice" data-id="${esc(p.id)}">Kaydet</button></td>
-    <td>${p.basePrice != null ? `<button class="link" data-act="resetPrice" data-id="${esc(p.id)}" title="Eski fiyat: ${fmt(p.basePrice)}">Eski fiyata dön</button>` : ''}</td></tr>`).join('')}</tbody></table></div>` : '<p class="hint">Bu aramayla eşleşen ürün yok.</p>';
+  return list.length ? `<div class="tbl-wrap"><table class="tbl" style="min-width:460px"><thead><tr><th>Ürün adı</th><th>Kategori</th><th class="r">Fiyat (₺)</th><th></th></tr></thead><tbody>${list.slice(0, 300).map(p => `<tr>
+    <td><input data-name-id="${esc(p.id)}" value="${esc(p.name)}" aria-label="Ürün adı" style="width:100%;min-width:180px;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:6px 8px">${p.custom ? ' <span class="chip">Yeni</span>' : ''}</td><td>${esc(CATS.find(c => c.key === p.cat)?.label || '')}</td>
+    <td class="r" style="white-space:nowrap"><input type="number" min="0" step="any" value="${+p.price}" data-price-id="${esc(p.id)}" aria-label="${esc(p.name)} fiyatı" style="width:110px;text-align:right;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:6px 8px"> / ${esc(unitOf(p))} <button class="btn sm" type="button" data-act="saveRow" data-id="${esc(p.id)}">Kaydet</button></td>
+    <td style="white-space:nowrap">${p.basePrice != null ? `<button class="link" data-act="resetPrice" data-id="${esc(p.id)}" title="Eski fiyat: ${fmt(p.basePrice)}">Eski fiyat</button> · ` : ''}${p.baseName ? `<button class="link" data-act="resetName" data-id="${esc(p.id)}" title="Eski ad: ${esc(p.baseName)}">Eski ad</button> · ` : ''}<button class="btn danger sm" type="button" data-act="delProduct" data-id="${esc(p.id)}">Sil</button></td></tr>`).join('')}</tbody></table></div>` : '<p class="hint">Bu aramayla eşleşen ürün yok.</p>';
+}
+function hiddenList() {
+  const hid = [...hiddenIds()].map(id => BASE.find(p => p.id === id)).filter(Boolean).map(baseEdited);
+  if (!hid.length) return '';
+  return `<details style="margin-top:12px"><summary class="hint" style="cursor:pointer">Silinen ürünler (${hid.length})</summary><div class="lines" style="margin-top:8px">${hid.map(p => `<div class="line"><div style="min-width:0"><div class="nm">${esc(p.name)}</div><div class="sub">${esc(CATS.find(c => c.key === p.cat)?.label || '')} · ${fmt(p.price)} / ${esc(unitOf(p))}</div></div><div class="rt"><button class="btn sm" data-act="restoreProduct" data-id="${esc(p.id)}">Geri al</button></div></div>`).join('')}</div></details>`;
 }
 function productsView() {
   const list = store.cache.products;
-  return `<div class="box" style="margin-bottom:16px"><h3>Fiyatlar</h3>
-    <p class="hint">Fiyatı yazıp yanındaki <b>Kaydet</b>'e basın (Enter da olur); menüde ve yeni tekliflerde hemen geçerli olur. Önceden hazırlanmış teklifler değişmez.</p>
+  return `<div class="box" style="margin-bottom:16px"><h3>Ürünler ve fiyatlar</h3>
+    <p class="hint">Adı ya da fiyatı değiştirip satırdaki <b>Kaydet</b>'e basın (Enter da olur); menüde ve yeni tekliflerde hemen geçerli olur. Önceden hazırlanmış teklifler değişmez.</p>
     <div class="filters"><input id="pp_q" type="search" placeholder="Ürün ara" value="${esc(priceQ)}"><select id="pp_cat"><option value="">Tüm kategoriler</option>${CATS.map(c => `<option value="${c.key}"${priceCat === c.key ? ' selected' : ''}>${c.label}</option>`).join('')}</select></div>
-    <div id="ppList">${priceRows()}</div></div>
+    <div id="ppList">${priceRows()}</div>${hiddenList()}</div>
   <div class="split">
     <form class="box" id="prForm"><h3>Menüye ürün ekle</h3>
       <div class="fields">
@@ -1600,7 +1613,17 @@ document.addEventListener('click', async e => {
         else { const c = store.cache.customers.find(x => x.id === id); if (c) { delete c.hash; saveLocal('customers'); onStore(); } }
       }, 'Şifre sıfırlandı. Müşteri aynı numarayla tekrar üye olup yeni şifre belirleyebilir.');
       $('#custDlg').close(); break;
-    case 'savePrice': { const inp = document.querySelector(`[data-price-id="${CSS.escape(id)}"]`); if (inp) { const p = byId(id); if (+inp.value === +p?.price) toast('Fiyat zaten kayıtlı: ' + fmt(p.price)); else await savePrice(inp); } break; }
+    case 'saveRow': await saveRow(id); break;
+    case 'resetName': { const nm = { ...(store.settings.names || {}) }; delete nm[id]; await safe(() => putSettings({ names: nm }), 'Eski ada dönüldü'); break; }
+    case 'restoreProduct': await safe(() => putSettings({ hidden: (store.settings.hidden || []).filter(x => x !== id) }), 'Ürün menüye geri geldi'); break;
+    case 'delProduct': {
+      if (!t.dataset.sure) { t.dataset.sure = '1'; t.textContent = 'Emin misiniz?'; t.style.color = t.style.borderColor = 'var(--bad)'; setTimeout(() => { if (t.isConnected) { delete t.dataset.sure; t.textContent = 'Sil'; t.style.color = t.style.borderColor = ''; } }, 4000); break; }
+      const p = byId(id); if (!p) break;
+      if (p.custom) await safe(() => del('products', id), p.name + ' silindi');
+      else await safe(() => putSettings({ hidden: [...new Set([...(store.settings.hidden || []), id])] }), p.name + ' menüden kaldırıldı');
+      if (cart.some(l => l.id === id)) setQty(id, 0);
+      break;
+    }
     case 'resetPrice': { const pr = { ...(store.settings.prices || {}) }; delete pr[id]; await safe(() => putSettings({ prices: pr }), 'Eski fiyata dönüldü'); break; }
     case 'delOffer':
       if (t.dataset.sure) { if (await safe(() => del('offers', id), 'Teklif silindi') !== false && $('#offerDlg').open) $('#offerDlg').close(); }
@@ -1645,13 +1668,19 @@ document.addEventListener('change', async e => {
   if (t.id === 'pp_cat') { priceCat = t.value; $('#ppList').innerHTML = priceRows(); }
   if (t.id === 'of_status') { offerFilter.status = t.value; renderPanel(); }
 });
-async function savePrice(t) {
-  {
-    const id = t.dataset.priceId, v = +t.value, p = byId(id);
-    if (!p || !(v >= 0) || t.value === '' || v === +p.price) return;
-    if (p.custom) await safe(() => patch('products', id, { price: v }), p.name + ': ' + fmt(v));
-    else await safe(() => putSettings({ prices: { ...(store.settings.prices || {}), [id]: v } }), p.name + ': ' + fmt(v));
-  }
+async function saveRow(id) {
+  const p = byId(id); if (!p) return;
+  const pi = document.querySelector(`[data-price-id="${CSS.escape(id)}"]`), ni = document.querySelector(`[data-name-id="${CSS.escape(id)}"]`);
+  const v = pi ? +pi.value : +p.price, name = (ni?.value || '').trim() || p.name;
+  if (!(v >= 0) || pi?.value === '') { toast('Geçerli bir fiyat yazın.'); return; }
+  if (v === +p.price && name === p.name) { toast('Değişiklik yok'); return; }
+  const msg = name + ': ' + fmt(v) + ' kaydedildi';
+  if (p.custom) { await safe(() => patch('products', id, { price: v, name }), msg); return; }
+  const st = store.settings, base = BASE.find(b => b.id === id);
+  const prices = { ...(st.prices || {}) }, names = { ...(st.names || {}) };
+  if (v !== +p.price) prices[id] = v;
+  if (name !== p.name) { if (name === base.name) delete names[id]; else names[id] = name; }
+  await safe(() => putSettings({ prices, names }), msg);
 }
 document.addEventListener('input', e => {
   const t = e.target;
@@ -1664,7 +1693,7 @@ document.addEventListener('input', e => {
   if (t.id === 'cu_q') { custQ = t.value; clearTimeout(renderPanel.t); renderPanel.t = setTimeout(() => { renderPanel(); const el = $('#cu_q'); el.focus(); el.setSelectionRange(el.value.length, el.value.length); }, 250); }
 });
 document.addEventListener('keydown', e => {
-  if (e.key === 'Enter' && e.target.dataset?.priceId) { e.preventDefault(); savePrice(e.target); }
+  if (e.key === 'Enter' && (e.target.dataset?.priceId || e.target.dataset?.nameId)) { e.preventDefault(); saveRow(e.target.dataset.priceId || e.target.dataset.nameId); }
   if (e.key === 'Enter' && e.target.id === 'coupon') { e.preventDefault(); $('[data-act="applyCoupon"]').click(); }
   if (e.key === 'Escape' && $('#drawer').classList.contains('open')) closeCart();
 });
