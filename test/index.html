@@ -289,6 +289,11 @@ button.ccard:hover { border-color: var(--brass); }
 .bar .mark .logo { height: 17px; }
 .doc-brand .logo { display: block; height: 34px; width: auto; color: #5f2534; }
 .pcard { cursor: pointer; }
+.subchips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 18px; }
+.subchips button { border: 1px solid var(--line); background: transparent; color: var(--muted); border-radius: 999px; padding: 7px 14px; font-size: 14px; }
+.subchips button small { opacity: .6; margin-left: 2px; }
+.subchips button.on, .subchips button:hover { background: var(--brass); color: var(--bg); border-color: var(--brass); }
+.subhead { font-family: var(--display); font-size: 22px; margin: 22px 0 12px; scroll-margin-top: 140px; }
 .price.ask { color: var(--brass); font-weight: 600; font-size: 14px; white-space: nowrap; }
 .pv { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 0; }
 .pv-img { background: var(--raised); min-height: 280px; display: grid; place-items: center; }
@@ -566,6 +571,10 @@ function toast(t) { const el = $('#toast'); el.textContent = t; el.hidden = fals
 
 /* ---------- Ürünler ---------- */
 const BASE = [];
+// Meze alt kategorileri; varsayılan dağılım aşağıda, müdür panelden değiştirebilir
+const SUBS = [['meze', 'Mezeler'], ['yogurtlu', 'Yoğurtlu mezeler'], ['zeytinyagli', 'Zeytinyağlılar'], ['deniz', 'Deniz ürünleri'], ['sarma', 'Zeytinyağlı sarma ve dolmalar'], ['etli', 'Etli ürünler'], ['donuk', 'Donuk ürünler']];
+const SUB_LABEL = Object.fromEntries(SUBS);
+const DEFAULT_SUB = {"156":"donuk","157":"donuk","158":"donuk","159":"donuk","164":"donuk","165":"donuk","195":"donuk","196":"donuk","197":"donuk","192":"donuk","193":"donuk","141":"etli","144":"etli","145":"etli","146":"etli","147":"etli","148":"etli","149":"etli","150":"etli","151":"etli","152":"etli","179":"deniz","208":"deniz","209":"deniz","210":"deniz","211":"deniz","214":"deniz","132":"yogurtlu","135":"yogurtlu","143":"yogurtlu","160":"yogurtlu","161":"yogurtlu","163":"yogurtlu","171":"yogurtlu","175":"yogurtlu","180":"yogurtlu","194":"yogurtlu","205":"yogurtlu","218":"yogurtlu","219":"yogurtlu","176":"sarma","177":"sarma","178":"sarma","217":"sarma","220":"sarma","221":"sarma","222":"sarma","223":"sarma","224":"sarma","225":"sarma","226":"sarma","231":"sarma","232":"sarma","234":"sarma","235":"sarma","236":"sarma","239":"sarma","245":"sarma","137":"zeytinyagli","166":"zeytinyagli","167":"zeytinyagli","174":"zeytinyagli","204":"zeytinyagli","227":"zeytinyagli","228":"zeytinyagli","229":"zeytinyagli","230":"zeytinyagli","233":"zeytinyagli","237":"zeytinyagli","238":"zeytinyagli","241":"zeytinyagli","243":"zeytinyagli","244":"zeytinyagli"};
 const MEZE_ZAM = 1.5; // 2 Kasım 2026: tüm mezelere %50 zam (1 = zam yok)
 for (const c of CATS) for (const p of (MENU[c.key] || [])) BASE.push({ ...p, id: String(p.id), cat: c.key, img: p.big || null, ...(c.key === 'mezeler' ? { price: Math.round(p.price * MEZE_ZAM) } : {}) });
 function unitOf(p) {
@@ -579,12 +588,13 @@ function baseEdited(p) {
   let x = p;
   if (pr[p.id] != null) x = { ...x, basePrice: p.price, price: +pr[p.id] };
   if (nm[p.id]) x = { ...x, baseName: p.name, name: nm[p.id] };
+  if (p.cat === 'mezeler') x = { ...x, sub: (st.subs || {})[p.id] || DEFAULT_SUB[p.id] || 'meze' };
   const im = st.imgs || {};
   if (im[p.id]) x = { ...x, baseImg: p.img, img: im[p.id] };
   return x;
 }
 function hiddenIds() { return new Set(store.settings?.hidden || []); }
-function allProducts() { const hid = hiddenIds(); return BASE.filter(p => !hid.has(p.id)).map(baseEdited).concat(store.cache.products.map(p => ({ ...p, custom: true }))); }
+function allProducts() { const hid = hiddenIds(); return BASE.filter(p => !hid.has(p.id)).map(baseEdited).concat(store.cache.products.map(p => ({ ...p, custom: true, ...(p.cat === 'mezeler' ? { sub: (store.settings?.subs || {})[p.id] || p.sub || 'meze' } : {}) }))); }
 function byId(id) { return allProducts().find(p => p.id === String(id)); }
 
 /* ---------- Kayıt alanı (paylaşımlı db, yoksa bu cihaz) ---------- */
@@ -832,13 +842,20 @@ function renderMenu() {
         <span class="eyebrow">${all.length} ürün · fiyatlar ${esc(units)} başına</span>
         <h2>${esc(c.word)}</h2>
       </div>
-      <div class="grid">${list.map(cardHTML).join('')}</div>
+      ${c.key === 'mezeler' ? mezeGrid(list) : `<div class="grid">${list.map(cardHTML).join('')}</div>`}
     </section>`;
   }).join('') || '';
   // Sofra kur: mezeler, pastalar ve içeceklerden seçki; kategorilerin üstünde kendi bölümü
   if (!q) $('#chapters').insertAdjacentHTML('afterbegin', `<section class="chapter" id="sofra-kur">${sofraHTML()}</section>`);
   if (!any) $('#chapters').innerHTML = `<p class="empty">“${esc($('#q').value)}” için ürün bulunamadı. Farklı bir kelime deneyin.</p>`;
   observeChapters(); renderSofra();
+}
+let menuSub = '';
+function mezeGrid(list) {
+  const counts = Object.fromEntries(SUBS.map(([k]) => [k, list.filter(p => p.sub === k).length]));
+  const chips = `<div class="subchips" role="tablist" aria-label="Meze çeşitleri"><button data-act="menuSub" data-sub="" class="${menuSub ? '' : 'on'}">Tümü</button>${SUBS.filter(([k]) => counts[k]).map(([k, l]) => `<button data-act="menuSub" data-sub="${k}" class="${menuSub === k ? 'on' : ''}">${esc(l)} <small>${counts[k]}</small></button>`).join('')}</div>`;
+  const groups = SUBS.filter(([k]) => (!menuSub || menuSub === k) && counts[k]);
+  return chips + groups.map(([k, l]) => `<h3 class="subhead" id="sub-${k}">${esc(l)}</h3><div class="grid">${list.filter(p => p.sub === k).map(cardHTML).join('')}</div>`).join('');
 }
 function cardHTML(p) {
   const line = cart.find(l => l.id === p.id);
@@ -1469,10 +1486,11 @@ function couponsView() {
 let priceQ = '', priceCat = '';
 function priceRows() {
   const q = norm(priceQ);
-  const list = allProducts().filter(p => (!priceCat || p.cat === priceCat) && (!q || norm(p.name).includes(q)));
+  const [pc, ps] = priceCat.split(':');
+  const list = allProducts().filter(p => (!pc || p.cat === pc) && (!ps || p.sub === ps) && (!q || norm(p.name).includes(q)));
   return list.length ? `<div class="tbl-wrap"><table class="tbl" style="min-width:460px"><thead><tr><th>Foto</th><th>Ürün adı</th><th>Kategori</th><th class="r">Fiyat (₺)</th><th></th></tr></thead><tbody>${list.slice(0, 300).map(p => `<tr>
     <td style="width:64px"><label title="Fotoğrafı değiştir" style="display:block;width:52px;height:52px;border-radius:10px;overflow:hidden;cursor:pointer;background:var(--raised);position:relative">${p.img ? `<img src="${esc(p.img)}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover">` : '<span class="mono" style="font-size:20px;display:grid;place-items:center;height:100%">J</span>'}<span style="position:absolute;inset:auto 0 0 0;background:rgba(0,0,0,.6);color:#fff;font-size:10px;text-align:center">${p.img ? 'Değiştir' : 'Ekle'}</span><input type="file" accept="image/*" data-img-id="${esc(p.id)}" hidden></label>${p.baseImg !== undefined ? `<button class="link" style="font-size:11px" data-act="resetImg" data-id="${esc(p.id)}">Eskisi</button>` : ''}</td>
-    <td><input data-name-id="${esc(p.id)}" value="${esc(p.name)}" aria-label="Ürün adı" style="width:100%;min-width:180px;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:6px 8px">${p.custom ? ' <span class="chip">Yeni</span>' : ''}</td><td>${esc(CATS.find(c => c.key === p.cat)?.label || '')}</td>
+    <td><input data-name-id="${esc(p.id)}" value="${esc(p.name)}" aria-label="Ürün adı" style="width:100%;min-width:180px;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:6px 8px">${p.custom ? ' <span class="chip">Yeni</span>' : ''}</td><td>${esc(CATS.find(c => c.key === p.cat)?.label || '')}${p.cat === 'mezeler' ? `<br><select data-sub-id="${esc(p.id)}" aria-label="Alt kategori" style="margin-top:4px;font-size:12px;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:6px;padding:3px 6px">${SUBS.map(([k, l]) => `<option value="${k}"${p.sub === k ? ' selected' : ''}>${esc(l)}</option>`).join('')}</select>` : ''}</td>
     <td class="r" style="white-space:nowrap"><input type="number" min="0" step="any" value="${hasPrice(p) ? +p.price : ''}" placeholder="—" data-price-id="${esc(p.id)}" aria-label="${esc(p.name)} fiyatı" style="width:110px;text-align:right;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:6px 8px"> / ${esc(unitOf(p))} <button class="btn sm" type="button" data-act="saveRow" data-id="${esc(p.id)}">Kaydet</button>
       <label style="display:inline-flex;align-items:center;gap:4px;margin-left:6px;font-size:12px;cursor:pointer"><input type="checkbox" data-ask-id="${esc(p.id)}"${hasPrice(p) ? '' : ' checked'}>${ASK}</label></td>
     <td style="white-space:nowrap">${p.basePrice != null ? `<button class="link" data-act="resetPrice" data-id="${esc(p.id)}" title="Eski fiyat: ${fmt(p.basePrice)}">Eski fiyat</button> · ` : ''}${p.baseName ? `<button class="link" data-act="resetName" data-id="${esc(p.id)}" title="Eski ad: ${esc(p.baseName)}">Eski ad</button> · ` : ''}<button class="btn danger sm" type="button" data-act="delProduct" data-id="${esc(p.id)}">Sil</button></td></tr>`).join('')}</tbody></table></div>` : '<p class="hint">Bu aramayla eşleşen ürün yok.</p>';
@@ -1486,13 +1504,14 @@ function productsView() {
   const list = store.cache.products;
   return `<div class="box" style="margin-bottom:16px"><h3>Ürünler ve fiyatlar</h3>
     <p class="hint">Adı ya da fiyatı değiştirip satırdaki <b>Kaydet</b>'e basın (Enter da olur). Fotoğrafı değiştirmek için ürünün resmine dokunun. Fiyat vermeyeceğiniz ürünlerde “Fiyat sorunuz” kutusunu işaretlemeniz yeterli, hemen kaydedilir. Değişiklikler menüde ve yeni tekliflerde hemen geçerli olur. Önceden hazırlanmış teklifler değişmez.</p>
-    <div class="filters"><input id="pp_q" type="search" placeholder="Ürün ara" value="${esc(priceQ)}"><select id="pp_cat"><option value="">Tüm kategoriler</option>${CATS.map(c => `<option value="${c.key}"${priceCat === c.key ? ' selected' : ''}>${c.label}</option>`).join('')}</select></div>
+    <div class="filters"><input id="pp_q" type="search" placeholder="Ürün ara" value="${esc(priceQ)}"><select id="pp_cat"><option value="">Tüm kategoriler</option>${CATS.map(c => `<option value="${c.key}"${priceCat === c.key ? ' selected' : ''}>${c.label}</option>${c.key === 'mezeler' ? SUBS.map(([k, l]) => `<option value="mezeler:${k}"${priceCat === 'mezeler:' + k ? ' selected' : ''}>&nbsp;&nbsp;› ${esc(l)}</option>`).join('') : ''}`).join('')}</select></div>
     <div id="ppList">${priceRows()}</div>${hiddenList()}</div>
   <div class="split">
     <form class="box" id="prForm"><h3>Menüye ürün ekle</h3>
       <div class="fields">
         <div class="field full"><label for="pr_name">Ürün adı *</label><input id="pr_name" required></div>
         <div class="field"><label for="pr_cat">Kategori</label><select id="pr_cat">${CATS.map(c => `<option value="${c.key}">${c.label}</option>`).join('')}</select></div>
+        <div class="field"><label for="pr_sub">Alt kategori (mezeler)</label><select id="pr_sub">${SUBS.map(([k, l]) => `<option value="${k}">${esc(l)}</option>`).join('')}</select></div>
         <div class="field"><label for="pr_unit">Birim</label><select id="pr_unit"><option>kg</option><option>adet</option><option>kutu</option><option>koli</option><option>porsiyon</option></select></div>
         <div class="field"><label for="pr_price">Fiyat (₺)</label><input id="pr_price" type="number" min="0" step="any" placeholder="Boş: Fiyat sorunuz"></div>
         <div class="field"><label for="pr_img">Fotoğraf</label><input id="pr_img" type="file" accept="image/*"></div>
@@ -1601,6 +1620,7 @@ document.addEventListener('click', async e => {
   if (t.dataset.open) { const o = store.cache.offers.find(x => x.id === t.dataset.open); if (o) { $('#custDlg').open && $('#custDlg').close(); $('#roleDlg').open && $('#roleDlg').close(); openOffer(o); } return; }
   if (t.dataset.cust) { openCustomer(t.dataset.cust); return; }
   switch (t.dataset.act) {
+    case 'menuSub': { menuSub = t.dataset.sub; const top = $('#cat-mezeler').getBoundingClientRect().top; renderMenu(); const ch = $('.subchips'); if (ch) { const y = ch.getBoundingClientRect().top + scrollY - 140; if (top < 0) scrollTo({ top: y }); } break; }
     case 'goCart': if (!$('#panel').hidden) toast('Ürün sepette'); else openCart(); break;
     case 'add': { const min = minQty(byId(id)); setQty(id, min || 1); toast(min ? 'Sepete eklendi (' + min + ' kg)' : 'Sepete eklendi'); break; }
     case 'inc': { const l = cart.find(l => l.id === id); setQty(id, (l?.qty || 0) + 1); break; }
@@ -1707,6 +1727,7 @@ document.addEventListener('change', async e => {
   }
   if (t.id === 'of_staff') { offerFilter.staff = t.value; renderPanel(); }
   if (t.id === 'pp_cat') { priceCat = t.value; $('#ppList').innerHTML = priceRows(); }
+  if (t.dataset.subId) { const id = t.dataset.subId, p = byId(id); await safe(() => putSettings({ subs: { ...(store.settings.subs || {}), [id]: t.value } }), p.name + ' → ' + SUB_LABEL[t.value]); }
   if (t.dataset.imgId && t.files?.[0]) await setProductImage(t.dataset.imgId, t.files[0]);
   if (t.dataset.askId) {
     const id = t.dataset.askId, pi = document.querySelector(`[data-price-id="${CSS.escape(id)}"]`);
@@ -1771,7 +1792,7 @@ document.addEventListener('submit', async e => {
     if (file) { try { img = await uploadProductImage(file, pid); } catch (e) { err.textContent = e.message || 'Fotoğraf okunamadı. JPG veya PNG deneyin.'; err.hidden = false; return; } }
     const det = v('pr_det');
     const d = det ? det.split('·').map(s => s.split(':')).map(([a, b]) => b !== undefined ? [a.trim(), b.trim()] : ['Not', a.trim()]) : [];
-    await safe(() => put('products', pid, { name: v('pr_name'), cat: $('#pr_cat').value, unit: $('#pr_unit').value, price, img, d, createdAt: new Date().toISOString() }), 'Ürün menüye eklendi');
+    await safe(() => put('products', pid, { name: v('pr_name'), cat: $('#pr_cat').value, unit: $('#pr_unit').value, price, img, d, ...($('#pr_cat').value === 'mezeler' ? { sub: $('#pr_sub').value } : {}), createdAt: new Date().toISOString() }), 'Ürün menüye eklendi');
   }
   if (f.id === 'lgCust') loginCustomer();
   if (f.id === 'lgReg') registerCustomer();
@@ -1820,7 +1841,7 @@ function observeChapters() { io.disconnect(); $$('.chapter').forEach(s => io.obs
 let lastSig = '';
 function renderAll() {
   const st = store.settings || {};
-  const sig = JSON.stringify([store.cache.products.map(p => p.id + p.price + p.name), st.prices, st.names, st.hidden, st.imgs]);
+  const sig = JSON.stringify([store.cache.products.map(p => p.id + p.price + p.name), st.prices, st.names, st.hidden, st.imgs, st.subs]);
   if (sig !== lastSig) { lastSig = sig; renderMenu(); }
   checkSession(); renderRole();
   if (!document.activeElement?.closest('#drawer, #pnCartBody, #pnCartFoot')) renderCart();
