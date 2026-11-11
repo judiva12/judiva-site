@@ -288,6 +288,7 @@ button.ccard:hover { border-color: var(--brass); }
 .bar .mark .logo { height: 17px; }
 .doc-brand .logo { display: block; height: 34px; width: auto; color: #5f2534; }
 .pcard { cursor: pointer; }
+.price.ask { flex-basis: 100%; color: var(--brass); font-weight: 600; font-size: 14px; }
 .pv { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 0; }
 .pv-img { background: var(--raised); min-height: 280px; display: grid; place-items: center; }
 .pv-img img { width: 100%; height: 100%; max-height: 560px; object-fit: cover; display: block; }
@@ -547,6 +548,10 @@ const $$ = (s, el = document) => [...el.querySelectorAll(s)];
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const money = new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', minimumFractionDigits: 2 });
 const fmt = n => money.format(Math.round((+n || 0) * 100) / 100);
+// Fiyatı 0 olan (fiyatsız kaydedilen) ürünler: "Fiyat sorunuz"
+const ASK = 'Fiyat sorunuz';
+const hasPrice = x => +x?.price > 0;
+const fmtP = x => hasPrice(x) ? fmt(x.price) : ASK;
 const fmtQty = n => (+n).toLocaleString('tr-TR', { maximumFractionDigits: 2 });
 const fmtDate = iso => iso ? new Date(iso).toLocaleDateString('tr-TR', { day: '2-digit', month: 'long', year: 'numeric' }) : '';
 const fmtShort = iso => iso ? new Date(iso).toLocaleDateString('tr-TR') : '';
@@ -838,7 +843,7 @@ function cardHTML(p) {
   return `<article class="pcard${line ? ' in' : ''}" data-id="${esc(p.id)}">
     <div class="ph">${p.img ? `<img src="${esc(p.img)}" alt="${esc(p.name)}" loading="lazy">` : `<span class="mono">J</span>`}</div>
     <div class="bd">${p.custom ? '<span class="tag-new">Yeni ürün</span>' : ''}<h3><a href="#urun-${esc(p.id)}" style="color:inherit;text-decoration:none">${esc(p.name)}</a></h3>${det ? `<p class="det">${esc(det)}</p>` : ''}</div>
-    <div class="ft"><span class="price">${fmt(p.price)} <small>/ ${esc(unitOf(p))}</small></span>${ctrlHTML(p, line)}</div>
+    <div class="ft">${hasPrice(p) ? `<span class="price">${fmt(p.price)} <small>/ ${esc(unitOf(p))}</small></span>` : `<span class="price ask">${ASK}</span>`}${ctrlHTML(p, line)}</div>
   </article>`;
 }
 function ctrlHTML(p, line) {
@@ -923,9 +928,9 @@ function renderCart() {
   body.innerHTML = `
     <div class="lines">${t.lines.map(l => `<div class="line">
       ${l.p.img ? `<img src="${esc(l.p.img)}" alt="">` : `<div class="ph"><span class="mono">J</span></div>`}
-      <div style="min-width:0"><div class="nm" data-prod="${esc(l.id)}" style="cursor:pointer">${esc(l.p.name)}</div><div class="sub num">${fmt(l.p.price)} / ${esc(unitOf(l.p))}</div>
+      <div style="min-width:0"><div class="nm" data-prod="${esc(l.id)}" style="cursor:pointer">${esc(l.p.name)}</div><div class="sub num">${hasPrice(l.p) ? fmt(l.p.price) + ' / ' + esc(unitOf(l.p)) : ASK}</div>
         <div style="margin-top:6px">${ctrlHTML(l.p, l)}</div></div>
-      <div class="rt"><b class="num">${fmt(l.p.price * l.qty)}</b><button class="link" data-act="rm" data-id="${esc(l.id)}">Kaldır</button></div>
+      <div class="rt"><b class="num">${hasPrice(l.p) ? fmt(l.p.price * l.qty) : ASK}</b><button class="link" data-act="rm" data-id="${esc(l.id)}">Kaldır</button></div>
     </div>`).join('')}</div>
     <div>
       <p class="sect-t">İskonto</p>
@@ -949,6 +954,7 @@ function renderCart() {
     </div>
     <div class="who">${staff ? `Teklifi hazırlayan: <b>${esc(session.name)}</b> (${ROLE_TR[session.role]})` : 'Teklifi siz oluşturuyorsunuz. Judiva ekibi teklifinizi görür ve sizinle iletişime geçer.'}</div>`}`;
   foot.innerHTML = `
+    ${t.lines.some(l => !hasPrice(l.p)) ? `<p class="hint" style="margin:0 0 6px">“${ASK}” yazan ürünlerin fiyatı toplama dahil değil; ekibimiz size bildirir.</p>` : ''}
     <div class="tot"><span>Ara toplam</span><span>${fmt(t.subtotal)}</span></div>
     ${t.cc.ok ? `<div class="tot disc"><span>İskonto ${esc(t.cc.coupon.code)}</span><span>−${fmt(t.discount)}</span></div>` : ''}
     <div class="tot big"><span>Toplam</span><span>${fmt(t.total)}</span></div>
@@ -1018,9 +1024,10 @@ function docHTML(o) {
     </div>
     <table>
       <thead><tr><th style="width:28px">#</th><th>Ürün</th><th class="r">Miktar</th><th class="r">Birim fiyat</th><th class="r">Tutar</th></tr></thead>
-      <tbody>${o.items.map((it, i) => `<tr><td>${i + 1}</td><td><div class="it">${it.img ? `<img src="${esc(it.img)}" alt="">` : ''}<div>${esc(it.name)}${it.det ? `<small>${esc(it.det)}</small>` : ''}</div></div></td><td class="r">${fmtQty(it.qty)} ${esc(it.unit)}</td><td class="r">${fmt(it.price)}</td><td class="r">${fmt(it.price * it.qty)}</td></tr>`).join('')}</tbody>
+      <tbody>${o.items.map((it, i) => `<tr><td>${i + 1}</td><td><div class="it">${it.img ? `<img src="${esc(it.img)}" alt="">` : ''}<div>${esc(it.name)}${it.det ? `<small>${esc(it.det)}</small>` : ''}</div></div></td><td class="r">${fmtQty(it.qty)} ${esc(it.unit)}</td><td class="r">${fmtP(it)}</td><td class="r">${hasPrice(it) ? fmt(it.price * it.qty) : ASK}</td></tr>`).join('')}</tbody>
     </table>
     <div class="doc-sum">
+      ${(o.items || []).some(it => !hasPrice(it)) ? `<div style="display:block;font-size:11px;color:#8a6d5a">“${ASK}” yazan ürünlerin fiyatı toplama dahil değildir; ayrıca bildirilecektir.</div>` : ''}
       <div><span>Ara toplam</span><span>${fmt(o.subtotal)}</span></div>
       ${o.coupon ? `<div class="d"><span>İskonto ${esc(o.coupon.code)} ${o.coupon.type === 'tutar' ? '' : '(%' + esc(o.coupon.value) + ')'}</span><span>−${fmt(o.discount)}</span></div>` : ''}
       <div class="g"><span>Genel toplam</span><span>${fmt(o.total)}</span></div>
@@ -1108,7 +1115,7 @@ function openProduct(id) {
       <div class="pv-info">
         ${p.brand ? `<span class="eyebrow">${esc(p.brand)}</span>` : ''}
         <h3>${esc(p.name)}</h3>
-        <div class="pv-price">${fmt(p.price)} <small>/ ${esc(unitOf(p))}</small></div>
+        <div class="pv-price">${hasPrice(p) ? `${fmt(p.price)} <small>/ ${esc(unitOf(p))}</small>` : ASK}</div>
         ${(p.d || []).length ? `<dl>${p.d.map(x => `<dt>${esc(x[0])}</dt><dd>${esc(x[1])}</dd>`).join('')}</dl>` : ''}
         <div class="pv-buy" id="pvBuy">${line ? ctrlHTML(p, line) : `<button class="btn pri" data-act="add" data-id="${esc(p.id)}">+ Sepete ekle</button>`}</div>
         <div class="pv-line" id="pvLine">${line ? `Sepette: ${fmtQty(line.qty)} ${esc(unitOf(p))} · ${fmt(line.qty * p.price)}` : ''}</div>
@@ -1171,7 +1178,7 @@ function renderSofra() {
   $('#sfTable').innerHTML = shown.map((p, i) => { const [x, y, z] = SLOTS[i]; return `<div class="plate${sel.length ? '' : ' ghost'}" style="--x:${x}%;--y:${y}%;--s:${z}%">${p.img ? `<img src="${esc(p.img)}" alt="">` : ''}</div>`; }).join('')
     + `<div class="table-label"><b>${sel.length ? sel.length + ' çeşit' : 'Boş sofra'}</b><span>${sel.length ? sofraSummary(sel) : '<span class="dk">Soldan seçim yapın</span><span class="mb">Aşağıdan seçim yapın ↓</span>'}</span></div>`;
   const total = sel.reduce((t, p) => t + p.price * sofraQty(p), 0);
-  $('#sfSum').innerHTML = sel.length ? `<div class="lns">${sel.map(p => `<div class="ln"><span>${esc(p.name)} · ${fmtQty(sofraQty(p))} ${esc(unitOf(p))}</span><span>${fmt(p.price * sofraQty(p))}</span></div>`).join('')}</div>
+  $('#sfSum').innerHTML = sel.length ? `<div class="lns">${sel.map(p => `<div class="ln"><span>${esc(p.name)} · ${fmtQty(sofraQty(p))} ${esc(unitOf(p))}</span><span>${hasPrice(p) ? fmt(p.price * sofraQty(p)) : ASK}</span></div>`).join('')}</div>
       <div class="tot big"><span>Sofra toplamı</span><span>${fmt(total)}</span></div>
       <button class="btn go" data-act="sfAdd">Sofrayı sepete ekle</button><button class="link" data-act="sfClear" style="justify-self:start">Seçimi temizle</button>`
     : `<p class="hint">Seçtiğiniz ürünler, miktarı ve fiyatı burada listelenir.</p>`;
@@ -1188,7 +1195,7 @@ function renderSofraTiles() {
   const box = $('#sfTiles'), top = box.scrollTop;
   box.innerHTML = list.map(p => { const on = sofra.sel.includes(p.id); return `<button class="tile${on ? ' on' : ''}" data-act="sfToggle" data-id="${esc(p.id)}" aria-pressed="${on}">
     ${p.img ? `<img src="${esc(p.img)}" alt="" loading="lazy">` : '<span class="ph"><span class="mono" style="font-size:18px">J</span></span>'}
-    <span class="tn">${esc(p.name)}<small>${fmt(p.price)} / ${esc(unitOf(p))}</small></span><span class="ck">${on ? '✓' : '+'}</span></button>`; }).join('') || '<p class="hint">Bu isimde ürün yok.</p>';
+    <span class="tn">${esc(p.name)}<small>${hasPrice(p) ? fmt(p.price) + ' / ' + esc(unitOf(p)) : ASK}</small></span><span class="ck">${on ? '✓' : '+'}</span></button>`; }).join('') || '<p class="hint">Bu isimde ürün yok.</p>';
   box.scrollTop = top;
 }
 
@@ -1369,7 +1376,7 @@ function renderNewList() {
   list.innerHTML = ps.map(p => { const line = cart.find(l => l.id === p.id); return `<div class="prow${line ? ' in' : ''}" data-id="${esc(p.id)}">
     ${p.img ? `<img src="${esc(p.img)}" alt="" loading="lazy">` : '<span class="ph"><span class="mono" style="font-size:18px">J</span></span>'}
     <div class="pn"><b>${esc(p.name)}</b><small>${esc(detOf(p))}</small></div>
-    <div class="ft"><span class="price">${fmt(p.price)} <small>/ ${esc(unitOf(p))}</small></span>${ctrlHTML(p, line)}</div></div>`; }).join('') || '<p class="hint">Bu aramayla eşleşen ürün yok.</p>';
+    <div class="ft">${hasPrice(p) ? `<span class="price">${fmt(p.price)} <small>/ ${esc(unitOf(p))}</small></span>` : `<span class="price ask">${ASK}</span>`}${ctrlHTML(p, line)}</div></div>`; }).join('') || '<p class="hint">Bu aramayla eşleşen ürün yok.</p>';
   list.scrollTop = top;
 }
 function offersView() {
@@ -1462,7 +1469,7 @@ function priceRows() {
   const list = allProducts().filter(p => (!priceCat || p.cat === priceCat) && (!q || norm(p.name).includes(q)));
   return list.length ? `<div class="tbl-wrap"><table class="tbl" style="min-width:460px"><thead><tr><th>Ürün adı</th><th>Kategori</th><th class="r">Fiyat (₺)</th><th></th></tr></thead><tbody>${list.slice(0, 300).map(p => `<tr>
     <td><input data-name-id="${esc(p.id)}" value="${esc(p.name)}" aria-label="Ürün adı" style="width:100%;min-width:180px;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:6px 8px">${p.custom ? ' <span class="chip">Yeni</span>' : ''}</td><td>${esc(CATS.find(c => c.key === p.cat)?.label || '')}</td>
-    <td class="r" style="white-space:nowrap"><input type="number" min="0" step="any" value="${+p.price}" data-price-id="${esc(p.id)}" aria-label="${esc(p.name)} fiyatı" style="width:110px;text-align:right;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:6px 8px"> / ${esc(unitOf(p))} <button class="btn sm" type="button" data-act="saveRow" data-id="${esc(p.id)}">Kaydet</button></td>
+    <td class="r" style="white-space:nowrap"><input type="number" min="0" step="any" value="${hasPrice(p) ? +p.price : ''}" placeholder="${ASK}" data-price-id="${esc(p.id)}" aria-label="${esc(p.name)} fiyatı" style="width:110px;text-align:right;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:6px 8px"> / ${esc(unitOf(p))} <button class="btn sm" type="button" data-act="saveRow" data-id="${esc(p.id)}">Kaydet</button></td>
     <td style="white-space:nowrap">${p.basePrice != null ? `<button class="link" data-act="resetPrice" data-id="${esc(p.id)}" title="Eski fiyat: ${fmt(p.basePrice)}">Eski fiyat</button> · ` : ''}${p.baseName ? `<button class="link" data-act="resetName" data-id="${esc(p.id)}" title="Eski ad: ${esc(p.baseName)}">Eski ad</button> · ` : ''}<button class="btn danger sm" type="button" data-act="delProduct" data-id="${esc(p.id)}">Sil</button></td></tr>`).join('')}</tbody></table></div>` : '<p class="hint">Bu aramayla eşleşen ürün yok.</p>';
 }
 function hiddenList() {
@@ -1473,7 +1480,7 @@ function hiddenList() {
 function productsView() {
   const list = store.cache.products;
   return `<div class="box" style="margin-bottom:16px"><h3>Ürünler ve fiyatlar</h3>
-    <p class="hint">Adı ya da fiyatı değiştirip satırdaki <b>Kaydet</b>'e basın (Enter da olur); menüde ve yeni tekliflerde hemen geçerli olur. Önceden hazırlanmış teklifler değişmez.</p>
+    <p class="hint">Adı ya da fiyatı değiştirip satırdaki <b>Kaydet</b>'e basın (Enter da olur). Fiyatı boş bırakırsanız menüde “Fiyat sorunuz” yazar. Değişiklikler menüde ve yeni tekliflerde hemen geçerli olur. Önceden hazırlanmış teklifler değişmez.</p>
     <div class="filters"><input id="pp_q" type="search" placeholder="Ürün ara" value="${esc(priceQ)}"><select id="pp_cat"><option value="">Tüm kategoriler</option>${CATS.map(c => `<option value="${c.key}"${priceCat === c.key ? ' selected' : ''}>${c.label}</option>`).join('')}</select></div>
     <div id="ppList">${priceRows()}</div>${hiddenList()}</div>
   <div class="split">
@@ -1482,7 +1489,7 @@ function productsView() {
         <div class="field full"><label for="pr_name">Ürün adı *</label><input id="pr_name" required></div>
         <div class="field"><label for="pr_cat">Kategori</label><select id="pr_cat">${CATS.map(c => `<option value="${c.key}">${c.label}</option>`).join('')}</select></div>
         <div class="field"><label for="pr_unit">Birim</label><select id="pr_unit"><option>kg</option><option>adet</option><option>kutu</option><option>koli</option><option>porsiyon</option></select></div>
-        <div class="field"><label for="pr_price">Fiyat (₺) *</label><input id="pr_price" type="number" min="0" step="any" required></div>
+        <div class="field"><label for="pr_price">Fiyat (₺)</label><input id="pr_price" type="number" min="0" step="any" placeholder="Boş: Fiyat sorunuz"></div>
         <div class="field"><label for="pr_img">Fotoğraf</label><input id="pr_img" type="file" accept="image/*"></div>
         <div class="field full"><label for="pr_det">Detay</label><input id="pr_det" placeholder="ör. Raf ömrü: 4 gün · Kutu içi: 12 adet"></div>
       </div><p class="msg bad" id="prErr" hidden></p><button class="btn pri" type="submit">Ürünü ekle</button></form>
@@ -1671,10 +1678,10 @@ document.addEventListener('change', async e => {
 async function saveRow(id) {
   const p = byId(id); if (!p) return;
   const pi = document.querySelector(`[data-price-id="${CSS.escape(id)}"]`), ni = document.querySelector(`[data-name-id="${CSS.escape(id)}"]`);
-  const v = pi ? +pi.value : +p.price, name = (ni?.value || '').trim() || p.name;
-  if (!(v >= 0) || pi?.value === '') { toast('Geçerli bir fiyat yazın.'); return; }
+  const v = pi ? (pi.value.trim() === '' ? 0 : +pi.value) : +p.price, name = (ni?.value || '').trim() || p.name;
+  if (!(v >= 0)) { toast('Geçerli bir fiyat yazın ya da boş bırakın (Fiyat sorunuz).'); return; }
   if (v === +p.price && name === p.name) { toast('Değişiklik yok'); return; }
-  const msg = name + ': ' + fmt(v) + ' kaydedildi';
+  const msg = name + ': ' + (v > 0 ? fmt(v) : ASK) + ' kaydedildi';
   if (p.custom) { await safe(() => patch('products', id, { price: v, name }), msg); return; }
   const st = store.settings, base = BASE.find(b => b.id === id);
   const prices = { ...(st.prices || {}) }, names = { ...(st.names || {}) };
@@ -1718,7 +1725,7 @@ document.addEventListener('submit', async e => {
   }
   if (f.id === 'prForm') {
     const err = $('#prErr'); const price = +v('pr_price');
-    if (!v('pr_name') || !(price > 0)) { err.textContent = 'Ürün adı ve fiyat gerekli.'; err.hidden = false; return; }
+    if (!v('pr_name') || !(price >= 0)) { err.textContent = 'Ürün adı gerekli; fiyat boş bırakılabilir.'; err.hidden = false; return; }
     let img = null; const file = $('#pr_img').files[0];
     if (file) { try { img = await resizeImage(file); } catch { err.textContent = 'Fotoğraf okunamadı. JPG veya PNG deneyin.'; err.hidden = false; return; } }
     const det = v('pr_det');
@@ -1771,7 +1778,8 @@ function observeChapters() { io.disconnect(); $$('.chapter').forEach(s => io.obs
 
 let lastSig = '';
 function renderAll() {
-  const sig = JSON.stringify(store.cache.products.map(p => p.id + p.price + p.name));
+  const st = store.settings || {};
+  const sig = JSON.stringify([store.cache.products.map(p => p.id + p.price + p.name), st.prices, st.names, st.hidden]);
   if (sig !== lastSig) { lastSig = sig; renderMenu(); }
   checkSession(); renderRole();
   if (!document.activeElement?.closest('#drawer, #pnCartBody, #pnCartFoot')) renderCart();
