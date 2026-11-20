@@ -1,13 +1,14 @@
 // Yasal metinlerdeki şirket bilgileri. Boş bırakılan alan sayfada sarı "doldurulacak" etiketiyle görünür.
 // Bilgiyi bir kere buraya yazmanız yeterli; tüm yasal sayfalar buradan okur.
 window.JUDIVA_YASAL = {
-  unvan: '',          // Ticaret sicilindeki tam unvan, ör. "Judiva Gıda San. ve Tic. Ltd. Şti."
-  adres: '',          // Merkez adresi
-  mersis: '',         // MERSİS numarası
-  vergi: '',          // Vergi dairesi ve vergi numarası
+  unvan: 'Veron Bilişim ve Yazılım Hizmetleri Limited Şirketi', // Ticaret sicilindeki tam unvan
+  adres: 'İçerenköy Mah. Şafak Cami Sk. Bulut Apt. No: 34 İç Kapı No: 10, 34752 Ataşehir / İstanbul, Türkiye', // Merkez adresi
+  sube: 'Oruçreis Mah., Giyimkent Sitesi Ticaret Cad. No: 10A-12A, B114, 34205 Esenler / İstanbul, Türkiye', // Şube adresi
+  mersis: '0925131681300001',         // MERSİS numarası
+  vergi: 'Kozyatağı Vergi Dairesi, VKN 9251316813',          // Vergi dairesi ve vergi numarası
   telefon: '',        // Müşteri hattı
   eposta: '',         // KVKK başvurularının geleceği e-posta, ör. kvkk@judiva.com.tr
-  kep: '',            // KEP adresi (varsa)
+  kep: 'veronbilisim@hs06.kep.tr',            // KEP adresi (varsa)
   sunucu: '',         // Supabase projesinin bölgesi, ör. "Almanya (Frankfurt, AB)"
   mahkeme: '',        // Yetkili mahkeme ve icra daireleri için il, ör. "İstanbul (Anadolu)"
   guncelleme: '20 Kasım 2026' // Metinlerin son güncellenme tarihi
