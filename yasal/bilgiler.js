@@ -6,12 +6,8 @@ window.JUDIVA_YASAL = {
   sube: 'Oruçreis Mah., Giyimkent Sitesi Ticaret Cad. No: 10A-12A, B114, 34205 Esenler / İstanbul, Türkiye', // Şube adresi
   mersis: '0925131681300001',         // MERSİS numarası
   vergi: 'Kozyatağı Vergi Dairesi, VKN 9251316813',          // Vergi dairesi ve vergi numarası
-  telefon: '',        // Müşteri hattı
-  eposta: '',         // KVKK başvurularının geleceği e-posta, ör. kvkk@judiva.com.tr
   kep: 'veronbilisim@hs06.kep.tr',            // KEP adresi (varsa)
-  sunucu: '',         // Supabase projesinin bölgesi, ör. "Almanya (Frankfurt, AB)"
-  mahkeme: '',        // Yetkili mahkeme ve icra daireleri için il, ör. "İstanbul (Anadolu)"
-  guncelleme: '20 Kasım 2026' // Metinlerin son güncellenme tarihi
+  guncelleme: '21 Kasım 2026' // Metinlerin son güncellenme tarihi
 };
 (function () {
   const d = window.JUDIVA_YASAL;

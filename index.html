@@ -1269,7 +1269,7 @@ function renderRoleForm() {
 }
 const MIN_PW = () => store.sb ? 6 : 4;
 // Üyelikte kabul edilen yasal metinlerin sürümü; metinler değişince tarihi güncelleyin
-const LEGAL_VER = '2026-11-20';
+const LEGAL_VER = '2026-11-21';
 const legalStamp = at => ({ ver: LEGAL_VER, at, kosullar: true, aydinlatma: true });
 function busy(on) { const b = $('#roleForm button[type=submit]'); if (b) { b.disabled = on; b.style.opacity = on ? .6 : ''; } }
 async function sbSignIn(email, pw) { const { data, error } = await store.sb.auth.signInWithPassword({ email, password: pw }); return error ? null : data.user; }
