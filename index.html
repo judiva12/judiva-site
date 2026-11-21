@@ -146,7 +146,13 @@ main { padding-block: 24px 120px; display: grid; gap: 72px; }
 @keyframes chRise { from { translate: 0 28px; opacity: .35; } to { translate: 0 0; opacity: 1; } }
 @keyframes cardRise { from { translate: 0 48px; opacity: .1; scale: .96; } to { translate: 0 0; opacity: 1; scale: 1; } }
 
-.foot { border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; padding-block: 24px 40px; }
+.foot { border-top: 1px solid var(--line); color: var(--muted); font-size: 13px; padding-block: 24px 40px; display: grid; gap: 10px; }
+.legal { display: flex; flex-wrap: wrap; gap: 6px 16px; }
+.legal a { color: var(--muted); }
+.legal a:hover { color: var(--brass); }
+.field.consent, .consent { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; color: var(--muted); line-height: 1.45; }
+.field.consent input, .consent input { margin-top: 2px; padding: 0; border-radius: 3px; accent-color: var(--brass); flex: none; width: 16px; height: 16px; }
+.consent a, .hint a { color: var(--brass); }
 
 /* ---------- Sepet çekmecesi ---------- */
 .scrim { position: fixed; inset: 0; background: rgba(0,0,0,.55); z-index: 40; }
@@ -471,7 +477,7 @@ button.ccard:hover { border-color: var(--brass); }
 </div>
 
 <main class="wrap" id="chapters"></main>
-<div class="foot wrap"><span id="syncNote" class="sync">Kayıt alanına bağlanılıyor…</span></div>
+<div class="foot wrap"><nav class="legal" aria-label="Yasal metinler"><a href="yasal/aydinlatma-metni.html">KVKK Aydınlatma Metni</a><a href="yasal/gizlilik-politikasi.html">Gizlilik Politikası</a><a href="yasal/cerez-politikasi.html">Çerez Politikası</a><a href="yasal/kullanim-kosullari.html">Kullanım Koşulları</a><a href="yasal/basvuru-formu.html">KVKK Başvuru Formu</a></nav><span id="syncNote" class="sync">Kayıt alanına bağlanılıyor…</span></div>
 
 <button class="pill-btn cart-btn fab" id="fab" data-act="cart">Sepet <span class="badge num" id="fabCount">0</span></button>
 
@@ -1252,6 +1258,7 @@ function renderRoleForm() {
       <div class="field full"><label for="rg_email">E-posta</label><input id="rg_email" inputmode="email" autocomplete="email"></div>
       <div class="field full"><label for="rg_addr">Adres</label><input id="rg_addr" autocomplete="street-address"></div>
       <div class="field full"><label for="rg_pw">Şifre * <small class="hint">(en az ${MIN_PW()} karakter)</small></label><input id="rg_pw" type="password" autocomplete="new-password" required></div>
+      <label class="field full consent"><input id="rg_kvkk" type="checkbox" required><span><a href="yasal/kullanim-kosullari.html" target="_blank" rel="noopener">Kullanım Koşulları ve Üyelik Sözleşmesi</a>’ni kabul ediyorum; kişisel verilerimin işlenmesine ilişkin <a href="yasal/aydinlatma-metni.html" target="_blank" rel="noopener">KVKK Aydınlatma Metni</a>’ni okudum.</span></label>
       <div class="field full">${errBox}<button class="btn pri" type="submit">Üye ol ve giriş yap</button></div></form>
       <p class="hint">Bilgileriniz bir kere kaydedilir; sonraki tekliflerde tekrar yazmanız gerekmez.</p>`;
   else f.innerHTML = `<form id="lgTeam" class="fields">
@@ -1261,6 +1268,9 @@ function renderRoleForm() {
       <p class="hint">Kullanıcı adları ve ${store.sb ? 'ilk giriş şifreleri' : 'şifreler'} müdür panelindeki Kullanıcılar sekmesinden verilir.</p>`;
 }
 const MIN_PW = () => store.sb ? 6 : 4;
+// Üyelikte kabul edilen yasal metinlerin sürümü; metinler değişince tarihi güncelleyin
+const LEGAL_VER = '2026-11-21';
+const legalStamp = at => ({ ver: LEGAL_VER, at, kosullar: true, aydinlatma: true });
 function busy(on) { const b = $('#roleForm button[type=submit]'); if (b) { b.disabled = on; b.style.opacity = on ? .6 : ''; } }
 async function sbSignIn(email, pw) { const { data, error } = await store.sb.auth.signInWithPassword({ email, password: pw }); return error ? null : data.user; }
 async function sbSignUp(email, pw) {
@@ -1290,6 +1300,7 @@ async function registerCustomer() {
   const pk = phoneKey(v('rg_phone')); const pw = $('#rg_pw').value;
   if (!v('rg_name') || pk.length < 10) return showErr('Firma / ad soyad ve geçerli bir telefon numarası girin.');
   if (pw.length < MIN_PW()) return showErr('Şifre en az ' + MIN_PW() + ' karakter olmalı.');
+  if (!$('#rg_kvkk')?.checked) return showErr('Üye olmak için kullanım koşullarını kabul edip aydınlatma metnini okuduğunuzu onaylayın.');
   if (store.sb) {
     busy(true);
     const r = await sbSignUp(pk + SB_MAIL.uye, pw);
@@ -1301,7 +1312,7 @@ async function registerCustomer() {
       const old = claimed && store.cache.customers.find(c => c.id === claimed);
       const id = claimed || uid('m_'); const now = new Date().toISOString();
       const rec = { ...(old || {}), name: v('rg_name'), contact: v('rg_contact') || old?.contact || '', phone: v('rg_phone'), email: v('rg_email') || old?.email || '', addr: v('rg_addr') || old?.addr || '',
-        memberSince: now, source: old?.source || 'Siteden üye oldu', createdAt: old?.createdAt || now, updatedAt: now };
+        memberSince: now, source: old?.source || 'Siteden üye oldu', legal: legalStamp(now), createdAt: old?.createdAt || now, updatedAt: now };
       await put('customers', id, rec); await sbLoadAll(); await sbAdopt(r.user);
       busy(false); $('#roleDlg').close(); toast('Üyeliğiniz oluşturuldu');
     } catch (e) { busy(false); showErr('Üyelik tamamlanamadı: ' + sbErr(e)); }
@@ -1311,7 +1322,7 @@ async function registerCustomer() {
   if (old?.hash) return showErr('Bu numara zaten üye. Müşteri girişinden girin.');
   const id = old?.id || uid('m_'); const now = new Date().toISOString();
   const rec = { ...(old || {}), name: v('rg_name'), contact: v('rg_contact') || old?.contact || '', phone: v('rg_phone'), email: v('rg_email') || old?.email || '', addr: v('rg_addr') || old?.addr || '',
-    hash: await custHash(pk, pw), memberSince: now, source: old?.source || 'Siteden üye oldu', createdAt: old?.createdAt || now, updatedAt: now };
+    hash: await custHash(pk, pw), memberSince: now, source: old?.source || 'Siteden üye oldu', legal: legalStamp(now), createdAt: old?.createdAt || now, updatedAt: now };
   delete rec.id;
   if (await safe(() => put('customers', id, rec), 'Üyeliğiniz oluşturuldu')) { setSession({ role: 'uye', id, name: rec.contact || rec.name }); $('#roleDlg').close(); }
 }
@@ -1458,6 +1469,7 @@ function openCustomer(id) {
         <div class="field full"><label for="e_addr">Adres</label><input id="e_addr" value="${esc(c.addr)}"></div>
         <div class="field full"><label for="e_notes">Portföy notu</label><textarea id="e_notes" placeholder="Sektör, sipariş sıklığı, tercihleri…">${esc(c.notes)}</textarea></div>
       </div>
+      <p class="hint" style="margin-top:8px">Müşteri bilgilerini telefonda ya da yüz yüze alıyorsanız <a href="yasal/aydinlatma-metni.html" target="_blank" rel="noopener">KVKK Aydınlatma Metni</a>’ni iletin. Portföy notuna sağlık, din gibi özel nitelikli bilgi yazmayın.</p>
       <div class="acts"><button class="btn pri" type="submit">Kaydet</button>${id ? `<button class="btn" type="button" data-act="custToCart" data-id="${esc(id)}">Bu müşteriye teklif hazırla</button>` : ''}${id && c.hash ? `<button class="btn" type="button" data-act="resetCust" data-id="${esc(id)}">Üye şifresini sıfırla</button>` : ''}${id && isMgr() ? `<button class="btn danger" type="button" data-act="delCust" data-id="${esc(id)}">Sil</button>` : ''}</div>
     </form>
     <div class="box"><h3>Teklif geçmişi</h3>${id ? `<div class="nums" style="display:flex;gap:16px;font-size:14px"><span>${s.n} teklif</span><span>Toplam ${fmt(s.total)}</span><span style="color:var(--ok)">Kabul ${fmt(s.acc)}</span></div>` : ''}
