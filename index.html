@@ -246,7 +246,7 @@ dialog.wide { width: min(940px, calc(100% - 24px)); }
 .tabs { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; padding-block: 0 12px; }
 .tabs button { flex: none; background: transparent; border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px; font-size: 14px; color: var(--muted); }
 .tabs button.on { background: var(--text); color: var(--bg); border-color: var(--text); }
-.pn-body { padding-block: 24px 60px; display: grid; gap: 20px; }
+.pn-body { padding-block: 24px 60px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; }
 .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; }
 [hidden] { display: none !important; }
 .acc-off { width: 100%; text-align: left; color: inherit; font: inherit; cursor: pointer; background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; grid-template-columns: 1fr auto !important; }
@@ -280,7 +280,7 @@ button.ccard:hover { border-color: var(--brass); }
 .ccard .meta { font-size: 13px; color: var(--muted); overflow-wrap: anywhere; }
 .ccard .nums { display: flex; gap: 16px; font-size: 13px; font-variant-numeric: tabular-nums; }
 .ccard .nums b { color: var(--brass); }
-.box { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: grid; gap: 12px; }
+.box { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
 .box h3 { margin: 0; font-size: 16px; font-weight: 600; }
 .split { display: grid; grid-template-columns: minmax(0, 360px) minmax(0, 1fr); gap: 20px; align-items: start; }
 @media (max-width: 860px) { .split { grid-template-columns: 1fr; } }
