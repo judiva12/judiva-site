@@ -579,10 +579,16 @@ function toast(t) { const el = $('#toast'); el.textContent = t; el.hidden = fals
 const BASE = [];
 // Meze alt kategorileri; varsayılan dağılım aşağıda, müdür panelden değiştirebilir
 const BASE_SUBS = [['meze', 'Mezeler'], ['yogurtlu', 'Yoğurtlu mezeler'], ['zeytinyagli', 'Zeytinyağlılar'], ['deniz', 'Deniz ürünleri'], ['sarma', 'Zeytinyağlı sarma ve dolmalar'], ['etli', 'Etli ürünler'], ['donuk', 'Donuk ürünler']];
-// Müdürün panelden eklediği alt kategoriler ayarlarda saklanır: subCats = [{ k: anahtar, l: ad }, ...]
-function subs() { return BASE_SUBS.concat((store.settings?.subCats || []).filter(x => x && x.k && x.l).map(x => [x.k, x.l])); }
-function subLabel(k) { return (subs().find(x => x[0] === k) || [])[1] || 'Mezeler'; }
-function subKey(k) { return subs().some(x => x[0] === k) ? k : 'meze'; }
+// Müdürün panelden eklediği alt kategoriler ayarlarda saklanır: subCats = [{ k: anahtar, l: ad, c: kategori }, ...]
+// Mezelerin hazır alt kategorileri var; diğer kategorilerde ilk alt kategori eklenince ürünler varsayılan olarak "Pastalar" gibi kategori adıyla gruplanır
+function catLabel(c) { return CATS.find(x => x.key === c)?.label || ''; }
+function defSub(c) { return c === 'mezeler' ? 'meze' : 'gen'; }
+function subsOf(c) {
+  const own = (store.settings?.subCats || []).filter(x => x && x.k && x.l && (x.c || 'mezeler') === c).map(x => [x.k, x.l]);
+  return c === 'mezeler' ? BASE_SUBS.concat(own) : own.length ? [['gen', catLabel(c)]].concat(own) : [];
+}
+function subLabelIn(c, k) { return (subsOf(c).find(x => x[0] === k) || [])[1] || catLabel(c); }
+function subKeyIn(c, k) { return subsOf(c).some(x => x[0] === k) ? k : defSub(c); }
 const DEFAULT_SUB = {"156":"donuk","157":"donuk","158":"donuk","159":"donuk","164":"donuk","165":"donuk","195":"donuk","196":"donuk","197":"donuk","192":"donuk","193":"donuk","141":"etli","144":"etli","145":"etli","146":"etli","147":"etli","148":"etli","149":"etli","150":"etli","151":"etli","152":"etli","179":"deniz","208":"deniz","209":"deniz","210":"deniz","211":"deniz","214":"deniz","132":"yogurtlu","135":"yogurtlu","143":"yogurtlu","160":"yogurtlu","161":"yogurtlu","163":"yogurtlu","171":"yogurtlu","175":"yogurtlu","180":"yogurtlu","194":"yogurtlu","205":"yogurtlu","218":"yogurtlu","219":"yogurtlu","176":"sarma","177":"sarma","178":"sarma","217":"sarma","220":"sarma","221":"sarma","222":"sarma","223":"sarma","224":"sarma","225":"sarma","226":"sarma","231":"sarma","232":"sarma","234":"sarma","235":"sarma","236":"sarma","239":"sarma","245":"sarma","137":"zeytinyagli","166":"zeytinyagli","167":"zeytinyagli","174":"zeytinyagli","204":"zeytinyagli","227":"zeytinyagli","228":"zeytinyagli","229":"zeytinyagli","230":"zeytinyagli","233":"zeytinyagli","237":"zeytinyagli","238":"zeytinyagli","241":"zeytinyagli","243":"zeytinyagli","244":"zeytinyagli"};
 const MEZE_ZAM = 1.5; // 2 Kasım 2026: tüm mezelere %50 zam (1 = zam yok)
 for (const c of CATS) for (const p of (MENU[c.key] || [])) BASE.push({ ...p, id: String(p.id), cat: c.key, img: p.big || null, ...(c.key === 'mezeler' ? { price: Math.round(p.price * MEZE_ZAM) } : {}) });
@@ -597,13 +603,13 @@ function baseEdited(p) {
   let x = p;
   if (pr[p.id] != null) x = { ...x, basePrice: p.price, price: +pr[p.id] };
   if (nm[p.id]) x = { ...x, baseName: p.name, name: nm[p.id] };
-  if (p.cat === 'mezeler') x = { ...x, sub: subKey((st.subs || {})[p.id] || DEFAULT_SUB[p.id]) };
+  x = { ...x, sub: subKeyIn(p.cat, (st.subs || {})[p.id] || (p.cat === 'mezeler' ? DEFAULT_SUB[p.id] : null)) };
   const im = st.imgs || {};
   if (im[p.id]) x = { ...x, baseImg: p.img, img: im[p.id] };
   return x;
 }
 function hiddenIds() { return new Set(store.settings?.hidden || []); }
-function allProducts() { const hid = hiddenIds(); return BASE.filter(p => !hid.has(p.id)).map(baseEdited).concat(store.cache.products.map(p => ({ ...p, custom: true, ...(p.cat === 'mezeler' ? { sub: subKey((store.settings?.subs || {})[p.id] || p.sub) } : {}) }))); }
+function allProducts() { const hid = hiddenIds(); return BASE.filter(p => !hid.has(p.id)).map(baseEdited).concat(store.cache.products.map(p => ({ ...p, custom: true, sub: subKeyIn(p.cat, (store.settings?.subs || {})[p.id] || p.sub) }))); }
 function byId(id) { return allProducts().find(p => p.id === String(id)); }
 
 /* ---------- Kayıt alanı (paylaşımlı db, yoksa bu cihaz) ---------- */
@@ -851,7 +857,7 @@ function renderMenu() {
         <span class="eyebrow">${all.length} ürün · fiyatlar ${esc(units)} başına</span>
         <h2>${esc(c.word)}</h2>
       </div>
-      ${c.key === 'mezeler' ? mezeGrid(list) : `<div class="grid">${list.map(cardHTML).join('')}</div>`}
+      ${subGrid(c.key, list)}
     </section>`;
   }).join('') || '';
   // Sofra kur: mezeler, pastalar ve içeceklerden seçki; kategorilerin üstünde kendi bölümü
@@ -859,12 +865,15 @@ function renderMenu() {
   if (!any) $('#chapters').innerHTML = `<p class="empty">“${esc($('#q').value)}” için ürün bulunamadı. Farklı bir kelime deneyin.</p>`;
   observeChapters(); renderSofra();
 }
-let menuSub = '';
-function mezeGrid(list) {
-  const counts = Object.fromEntries(subs().map(([k]) => [k, list.filter(p => p.sub === k).length]));
-  const chips = `<div class="subchips" role="tablist" aria-label="Meze çeşitleri"><button data-act="menuSub" data-sub="" class="${menuSub ? '' : 'on'}">Tümü</button>${subs().filter(([k]) => counts[k]).map(([k, l]) => `<button data-act="menuSub" data-sub="${k}" class="${menuSub === k ? 'on' : ''}">${esc(l)} <small>${counts[k]}</small></button>`).join('')}</div>`;
-  const groups = subs().filter(([k]) => (!menuSub || menuSub === k) && counts[k]);
-  return chips + groups.map(([k, l]) => `<h3 class="subhead" id="sub-${k}">${esc(l)}</h3><div class="grid">${list.filter(p => p.sub === k).map(cardHTML).join('')}</div>`).join('');
+const menuSubs = {};
+function subGrid(cat, list) {
+  const ss = subsOf(cat), cur = menuSubs[cat] || '';
+  const counts = Object.fromEntries(ss.map(([k]) => [k, list.filter(p => p.sub === k).length]));
+  const used = ss.filter(([k]) => counts[k]);
+  if (used.length < 2) return `<div class="grid">${list.map(cardHTML).join('')}</div>`;
+  const chips = `<div class="subchips" role="tablist" aria-label="${esc(catLabel(cat))} çeşitleri"><button data-act="menuSub" data-cat="${cat}" data-sub="" class="${cur ? '' : 'on'}">Tümü</button>${used.map(([k, l]) => `<button data-act="menuSub" data-cat="${cat}" data-sub="${k}" class="${cur === k ? 'on' : ''}">${esc(l)} <small>${counts[k]}</small></button>`).join('')}</div>`;
+  const groups = used.filter(([k]) => !cur || cur === k);
+  return chips + groups.map(([k, l]) => `<h3 class="subhead" id="sub-${cat}-${k}">${esc(l)}</h3><div class="grid">${list.filter(p => p.sub === k).map(cardHTML).join('')}</div>`).join('');
 }
 function cardHTML(p) {
   const line = cart.find(l => l.id === p.id);
@@ -1505,7 +1514,7 @@ function priceRows() {
   const list = allProducts().filter(p => (!pc || p.cat === pc) && (!ps || p.sub === ps) && (!q || norm(p.name).includes(q)));
   return list.length ? `<div class="tbl-wrap"><table class="tbl" style="min-width:460px"><thead><tr><th>Foto</th><th>Ürün adı</th><th>Kategori</th><th class="r">Fiyat (₺)</th><th></th></tr></thead><tbody>${list.slice(0, 300).map(p => `<tr>
     <td style="width:64px"><label title="Fotoğrafı değiştir" style="display:block;width:52px;height:52px;border-radius:10px;overflow:hidden;cursor:pointer;background:var(--raised);position:relative">${p.img ? `<img src="${esc(p.img)}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover">` : '<span class="mono" style="font-size:20px;display:grid;place-items:center;height:100%">J</span>'}<span style="position:absolute;inset:auto 0 0 0;background:rgba(0,0,0,.6);color:#fff;font-size:10px;text-align:center">${p.img ? 'Değiştir' : 'Ekle'}</span><input type="file" accept="image/*" data-img-id="${esc(p.id)}" hidden></label>${p.baseImg !== undefined ? `<button class="link" style="font-size:11px" data-act="resetImg" data-id="${esc(p.id)}">Eskisi</button>` : ''}</td>
-    <td><input data-name-id="${esc(p.id)}" value="${esc(p.name)}" aria-label="Ürün adı" style="width:100%;min-width:180px;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:6px 8px">${p.custom ? ' <span class="chip">Yeni</span>' : ''}</td><td>${esc(CATS.find(c => c.key === p.cat)?.label || '')}${p.cat === 'mezeler' ? `<br><select data-sub-id="${esc(p.id)}" aria-label="Alt kategori" style="margin-top:4px;font-size:12px;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:6px;padding:3px 6px">${subs().map(([k, l]) => `<option value="${k}"${p.sub === k ? ' selected' : ''}>${esc(l)}</option>`).join('')}</select>` : ''}</td>
+    <td><input data-name-id="${esc(p.id)}" value="${esc(p.name)}" aria-label="Ürün adı" style="width:100%;min-width:180px;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:6px 8px">${p.custom ? ' <span class="chip">Yeni</span>' : ''}</td><td>${esc(CATS.find(c => c.key === p.cat)?.label || '')}${subsOf(p.cat).length ? `<br><select data-sub-id="${esc(p.id)}" aria-label="Alt kategori" style="margin-top:4px;font-size:12px;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:6px;padding:3px 6px">${subsOf(p.cat).map(([k, l]) => `<option value="${k}"${p.sub === k ? ' selected' : ''}>${esc(l)}</option>`).join('')}</select>` : ''}</td>
     <td class="r" style="white-space:nowrap"><input type="number" min="0" step="any" value="${hasPrice(p) ? +p.price : ''}" placeholder="—" data-price-id="${esc(p.id)}" aria-label="${esc(p.name)} fiyatı" style="width:110px;text-align:right;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:6px 8px"> / ${esc(unitOf(p))} <button class="btn sm" type="button" data-act="saveRow" data-id="${esc(p.id)}">Kaydet</button>
       <label style="display:inline-flex;align-items:center;gap:4px;margin-left:6px;font-size:12px;cursor:pointer"><input type="checkbox" data-ask-id="${esc(p.id)}"${hasPrice(p) ? '' : ' checked'}>${ASK}</label></td>
     <td style="white-space:nowrap">${p.basePrice != null ? `<button class="link" data-act="resetPrice" data-id="${esc(p.id)}" title="Eski fiyat: ${fmt(p.basePrice)}">Eski fiyat</button> · ` : ''}${p.baseName ? `<button class="link" data-act="resetName" data-id="${esc(p.id)}" title="Eski ad: ${esc(p.baseName)}">Eski ad</button> · ` : ''}<button class="btn danger sm" type="button" data-act="delProduct" data-id="${esc(p.id)}">Sil</button></td></tr>`).join('')}</tbody></table></div>` : '<p class="hint">Bu aramayla eşleşen ürün yok.</p>';
@@ -1515,27 +1524,31 @@ function hiddenList() {
   if (!hid.length) return '';
   return `<details style="margin-top:12px"><summary class="hint" style="cursor:pointer">Silinen ürünler (${hid.length})</summary><div class="lines" style="margin-top:8px">${hid.map(p => `<div class="line"><div style="min-width:0"><div class="nm">${esc(p.name)}</div><div class="sub">${esc(CATS.find(c => c.key === p.cat)?.label || '')} · ${fmt(p.price)} / ${esc(unitOf(p))}</div></div><div class="rt"><button class="btn sm" data-act="restoreProduct" data-id="${esc(p.id)}">Geri al</button></div></div>`).join('')}</div></details>`;
 }
+function subOpts(cat) { return subsOf(cat).map(([k, l]) => `<option value="${k}">${esc(l)}</option>`).join(''); }
+let scCat = 'mezeler';
 function subCatsBox() {
-  const all = allProducts().filter(p => p.cat === 'mezeler');
+  const prods = allProducts();
   const own = new Set((store.settings?.subCats || []).map(x => x && x.k));
-  return `<div class="box" style="margin-bottom:16px"><h3>Meze alt kategorileri</h3>
-    <p class="hint">Yeni bir alt kategori ekleyin, sonra aşağıdaki listede ürünlerin altındaki seçimden ürünleri bu kategoriye taşıyın. Menüde ürünü olan alt kategoriler görünür. Eklediğiniz bir alt kategoriyi silerseniz içindeki ürünler “Mezeler” altına geçer.</p>
-    <form id="scForm" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px"><input id="sc_name" placeholder="Yeni alt kategori adı (ör. Kızartmalar)" aria-label="Yeni alt kategori adı" maxlength="40" style="flex:1;min-width:200px;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:8px 10px"><button class="btn pri sm" type="submit">Alt kategori ekle</button></form>
+  const chip = (c, k, l) => `<span style="display:inline-flex;align-items:center;gap:8px;border:1px solid ${own.has(k) ? 'var(--brass)' : 'var(--line)'};border-radius:999px;padding:6px 12px;font-size:14px">${esc(l)} <small class="hint" style="margin:0">${prods.filter(p => p.cat === c && p.sub === k).length} ürün</small>${own.has(k) ? `<button class="link" data-act="delSub" data-cat="${c}" data-id="${esc(k)}">Sil</button>` : ''}</span>`;
+  const inp = 'background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:8px 10px';
+  return `<div class="box" style="margin-bottom:16px"><h3>Alt kategoriler</h3>
+    <p class="hint">Kategoriyi seçip yeni bir alt kategori ekleyin, sonra aşağıdaki listede ürünlerin altındaki seçimden ürünleri bu alt kategoriye taşıyın. Menüde ürünü olan alt kategoriler görünür. Eklediğiniz bir alt kategoriyi silerseniz içindeki ürünler kategorinin genel bölümüne geçer.</p>
+    <form id="scForm" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px"><select id="sc_cat" aria-label="Kategori" style="${inp}">${CATS.map(c => `<option value="${c.key}"${scCat === c.key ? ' selected' : ''}>${esc(c.label)}</option>`).join('')}</select><input id="sc_name" placeholder="Yeni alt kategori adı (ör. Kızartmalar)" aria-label="Yeni alt kategori adı" maxlength="40" style="flex:1;min-width:200px;${inp}"><button class="btn pri sm" type="submit">Alt kategori ekle</button></form>
     <p class="msg bad" id="scErr" hidden></p>
-    <div style="display:flex;flex-wrap:wrap;gap:8px">${subs().map(([k, l]) => `<span style="display:inline-flex;align-items:center;gap:8px;border:1px solid ${own.has(k) ? 'var(--brass)' : 'var(--line)'};border-radius:999px;padding:6px 12px;font-size:14px">${esc(l)} <small class="hint" style="margin:0">${all.filter(p => p.sub === k).length} ürün</small>${own.has(k) ? `<button class="link" data-act="delSub" data-id="${esc(k)}">Sil</button>` : ''}</span>`).join('')}</div></div>`;
+    ${CATS.filter(c => subsOf(c.key).length).map(c => `<p class="hint" style="margin:12px 0 6px"><b>${esc(c.label)}</b></p><div style="display:flex;flex-wrap:wrap;gap:8px">${subsOf(c.key).map(([k, l]) => chip(c.key, k, l)).join('')}</div>`).join('')}</div>`;
 }
 function productsView() {
   const list = store.cache.products;
   return `${subCatsBox()}<div class="box" style="margin-bottom:16px"><h3>Ürünler ve fiyatlar</h3>
     <p class="hint">Adı ya da fiyatı değiştirip satırdaki <b>Kaydet</b>'e basın (Enter da olur). Fotoğrafı değiştirmek için ürünün resmine dokunun. Fiyat vermeyeceğiniz ürünlerde “Fiyat sorunuz” kutusunu işaretlemeniz yeterli, hemen kaydedilir. Değişiklikler menüde ve yeni tekliflerde hemen geçerli olur. Önceden hazırlanmış teklifler değişmez.</p>
-    <div class="filters"><input id="pp_q" type="search" placeholder="Ürün ara" value="${esc(priceQ)}"><select id="pp_cat"><option value="">Tüm kategoriler</option>${CATS.map(c => `<option value="${c.key}"${priceCat === c.key ? ' selected' : ''}>${c.label}</option>${c.key === 'mezeler' ? subs().map(([k, l]) => `<option value="mezeler:${k}"${priceCat === 'mezeler:' + k ? ' selected' : ''}>&nbsp;&nbsp;› ${esc(l)}</option>`).join('') : ''}`).join('')}</select></div>
+    <div class="filters"><input id="pp_q" type="search" placeholder="Ürün ara" value="${esc(priceQ)}"><select id="pp_cat"><option value="">Tüm kategoriler</option>${CATS.map(c => `<option value="${c.key}"${priceCat === c.key ? ' selected' : ''}>${c.label}</option>${subsOf(c.key).map(([k, l]) => `<option value="${c.key}:${k}"${priceCat === c.key + ':' + k ? ' selected' : ''}>&nbsp;&nbsp;› ${esc(l)}</option>`).join('')}`).join('')}</select></div>
     <div id="ppList">${priceRows()}</div>${hiddenList()}</div>
   <div class="split">
     <form class="box" id="prForm"><h3>Menüye ürün ekle</h3>
       <div class="fields">
         <div class="field full"><label for="pr_name">Ürün adı *</label><input id="pr_name" required></div>
         <div class="field"><label for="pr_cat">Kategori</label><select id="pr_cat">${CATS.map(c => `<option value="${c.key}">${c.label}</option>`).join('')}</select></div>
-        <div class="field"><label for="pr_sub">Alt kategori (mezeler)</label><select id="pr_sub">${subs().map(([k, l]) => `<option value="${k}">${esc(l)}</option>`).join('')}</select></div>
+        <div class="field" id="pr_subF"><label for="pr_sub">Alt kategori</label><select id="pr_sub">${subOpts(CATS[0].key)}</select></div>
         <div class="field"><label for="pr_unit">Birim</label><select id="pr_unit"><option>kg</option><option>adet</option><option>kutu</option><option>koli</option><option>porsiyon</option></select></div>
         <div class="field"><label for="pr_price">Fiyat (₺)</label><input id="pr_price" type="number" min="0" step="any" placeholder="Boş: Fiyat sorunuz"></div>
         <div class="field"><label for="pr_img">Fotoğraf</label><input id="pr_img" type="file" accept="image/*"></div>
@@ -1644,7 +1657,7 @@ document.addEventListener('click', async e => {
   if (t.dataset.open) { const o = store.cache.offers.find(x => x.id === t.dataset.open); if (o) { $('#custDlg').open && $('#custDlg').close(); $('#roleDlg').open && $('#roleDlg').close(); openOffer(o); } return; }
   if (t.dataset.cust) { openCustomer(t.dataset.cust); return; }
   switch (t.dataset.act) {
-    case 'menuSub': { menuSub = t.dataset.sub; const top = $('#cat-mezeler').getBoundingClientRect().top; renderMenu(); const ch = $('.subchips'); if (ch) { const y = ch.getBoundingClientRect().top + scrollY - 140; if (top < 0) scrollTo({ top: y }); } break; }
+    case 'menuSub': { const cat = t.dataset.cat; menuSubs[cat] = t.dataset.sub; const top = $('#cat-' + cat).getBoundingClientRect().top; renderMenu(); const ch = $('#cat-' + cat + ' .subchips'); if (ch) { const y = ch.getBoundingClientRect().top + scrollY - 140; if (top < 0) scrollTo({ top: y }); } break; }
     case 'goCart': if (!$('#panel').hidden) toast('Ürün sepette'); else openCart(); break;
     case 'add': { const min = minQty(byId(id)); setQty(id, min || 1); toast(min ? 'Sepete eklendi (' + min + ' kg)' : 'Sepete eklendi'); break; }
     case 'inc': { const l = cart.find(l => l.id === id); setQty(id, (l?.qty || 0) + 1); break; }
@@ -1711,11 +1724,12 @@ document.addEventListener('click', async e => {
     }
     case 'delSub': {
       if (!t.dataset.sure) { t.dataset.sure = '1'; t.textContent = 'Emin misiniz?'; t.style.color = 'var(--bad)'; setTimeout(() => { if (t.isConnected) { delete t.dataset.sure; t.textContent = 'Sil'; t.style.color = ''; } }, 4000); break; }
-      const l = subLabel(id);
+      const cat = t.dataset.cat, l = subLabelIn(cat, id);
       const sc = (store.settings.subCats || []).filter(x => x && x.k !== id);
       const sb = Object.fromEntries(Object.entries(store.settings.subs || {}).filter(([, v]) => v !== id));
-      if (menuSub === id) menuSub = '';
-      await safe(() => putSettings({ subCats: sc, subs: sb }), l + ' silindi, ürünleri Mezeler altına geçti');
+      if (menuSubs[cat] === id) menuSubs[cat] = '';
+      const rest = sc.some(x => x && (x.c || 'mezeler') === cat) || cat === 'mezeler';
+      await safe(() => putSettings({ subCats: sc, subs: sb }), l + ' silindi' + (rest ? ', ürünleri ' + subLabelIn(cat, defSub(cat)) + ' altına geçti' : ''));
       break;
     }
     case 'resetPrice': { const pr = { ...(store.settings.prices || {}) }; delete pr[id]; await safe(() => putSettings({ prices: pr }), 'Eski fiyata dönüldü'); break; }
@@ -1759,8 +1773,10 @@ document.addEventListener('change', async e => {
     ls.set('judiva.custDraft', custDraft); renderCart();
   }
   if (t.id === 'of_staff') { offerFilter.staff = t.value; renderPanel(); }
+  if (t.id === 'pr_cat') { $('#pr_sub').innerHTML = subOpts(t.value); $('#pr_subF').hidden = !subsOf(t.value).length; }
+  if (t.id === 'sc_cat') scCat = t.value;
   if (t.id === 'pp_cat') { priceCat = t.value; $('#ppList').innerHTML = priceRows(); }
-  if (t.dataset.subId) { const id = t.dataset.subId, p = byId(id); await safe(() => putSettings({ subs: { ...(store.settings.subs || {}), [id]: t.value } }), p.name + ' → ' + subLabel(t.value)); }
+  if (t.dataset.subId) { const id = t.dataset.subId, p = byId(id); await safe(() => putSettings({ subs: { ...(store.settings.subs || {}), [id]: t.value } }), p.name + ' → ' + subLabelIn(p.cat, t.value)); }
   if (t.dataset.imgId && t.files?.[0]) await setProductImage(t.dataset.imgId, t.files[0]);
   if (t.dataset.askId) {
     const id = t.dataset.askId, pi = document.querySelector(`[data-price-id="${CSS.escape(id)}"]`);
@@ -1820,9 +1836,10 @@ document.addEventListener('submit', async e => {
   if (f.id === 'scForm') {
     const name = v('sc_name').replace(/\s+/g, ' ').trim(); const err = $('#scErr');
     if (!name) { err.textContent = 'Alt kategori adını yazın.'; err.hidden = false; return; }
-    if (subs().some(([, l]) => norm(l) === norm(name))) { err.textContent = 'Bu adla bir alt kategori zaten var.'; err.hidden = false; return; }
+    const cat = $('#sc_cat').value; scCat = cat;
+    if (norm(name) === norm(catLabel(cat)) || subsOf(cat).some(([, l]) => norm(l) === norm(name))) { err.textContent = 'Bu kategoride bu adla bir alt kategori zaten var.'; err.hidden = false; return; }
     const key = 'a_' + Date.now().toString(36);
-    await safe(() => putSettings({ subCats: [...(store.settings.subCats || []), { k: key, l: name }] }), name + ' alt kategorisi eklendi');
+    await safe(() => putSettings({ subCats: [...(store.settings.subCats || []), { k: key, l: name, c: cat }] }), catLabel(cat) + ' › ' + name + ' alt kategorisi eklendi');
   }
   if (f.id === 'prForm') {
     const err = $('#prErr'); const price = +v('pr_price');
@@ -1832,7 +1849,7 @@ document.addEventListener('submit', async e => {
     if (file) { try { img = await uploadProductImage(file, pid); } catch (e) { err.textContent = e.message || 'Fotoğraf okunamadı. JPG veya PNG deneyin.'; err.hidden = false; return; } }
     const det = v('pr_det');
     const d = det ? det.split('·').map(s => s.split(':')).map(([a, b]) => b !== undefined ? [a.trim(), b.trim()] : ['Not', a.trim()]) : [];
-    await safe(() => put('products', pid, { name: v('pr_name'), cat: $('#pr_cat').value, unit: $('#pr_unit').value, price, img, d, ...($('#pr_cat').value === 'mezeler' ? { sub: $('#pr_sub').value } : {}), createdAt: new Date().toISOString() }), 'Ürün menüye eklendi');
+    await safe(() => put('products', pid, { name: v('pr_name'), cat: $('#pr_cat').value, unit: $('#pr_unit').value, price, img, d, ...(subsOf($('#pr_cat').value).length ? { sub: $('#pr_sub').value } : {}), createdAt: new Date().toISOString() }), 'Ürün menüye eklendi');
   }
   if (f.id === 'lgCust') loginCustomer();
   if (f.id === 'lgReg') registerCustomer();
